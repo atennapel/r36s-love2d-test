@@ -1,3 +1,5 @@
+local ADSREnvelope = require("ADSREnvelope")
+
 local SAMPLES = {
   kick = "kick.mp3",
   snare = "snare.mp3",
@@ -9,23 +11,24 @@ local SAMPLES = {
   casio = "casio.ogg",
   piano = "piano.ogg",
 }
-local TET12 = 1.059463
+
 local INSTRUMENT = "sine"
-local ATTACK = 0.05
-local RELEASE = 0.019 -- any value lower than 0.019 will cause clicks
+local ATTACK = 1
+local DECAY = 0.5
+local SUSTAIN = 0.8
+local RELEASE = 1 -- any value lower than 0.019 will cause clicks
 
 local sfx = {}
 local text = ""
 
+local TET12 = 1.059463
 local function getPitchForNote(midiNote)
   return TET12 ^ (midiNote - 20 - 49)
 end
 
 local notes = {}
 local playing = {}
-local release = {}
-local releasing = {}
-local attacking = {}
+local envelopes = {}
 
 local function loadSample(name, file)
   sfx[name] = love.audio.newSource("sfx/" .. file, "static")
@@ -63,29 +66,14 @@ function love.load()
   playing.n = false
   playing.m = false
 
-  release.z = 0
-  release.x = 0
-  release.c = 0
-  release.v = 0
-  release.b = 0
-  release.n = 0
-  release.m = 0
-
-  releasing.z = false
-  releasing.x = false
-  releasing.c = false
-  releasing.v = false
-  releasing.b = false
-  releasing.n = false
-  releasing.m = false
-
-  attacking.z = false
-  attacking.x = false
-  attacking.c = false
-  attacking.v = false
-  attacking.b = false
-  attacking.n = false
-  attacking.m = false
+  local envelopeOptions = { attack = ATTACK, decay = DECAY, sustain = SUSTAIN, release = RELEASE }
+  envelopes.z = ADSREnvelope:create(envelopeOptions)
+  envelopes.x = ADSREnvelope:create(envelopeOptions)
+  envelopes.c = ADSREnvelope:create(envelopeOptions)
+  envelopes.v = ADSREnvelope:create(envelopeOptions)
+  envelopes.b = ADSREnvelope:create(envelopeOptions)
+  envelopes.n = ADSREnvelope:create(envelopeOptions)
+  envelopes.m = ADSREnvelope:create(envelopeOptions)
 end
 
 local function play(sample)
@@ -109,13 +97,8 @@ function love.keypressed(key, scancode, isRepeat)
   elseif notes[scancode] ~= nil then
     if not playing[scancode] then
       playing[scancode] = true
-      if ATTACK == 0 then
-        notes[scancode]:setVolume(1)
-        notes[scancode]:play()
-      else
-        attacking[scancode] = true
-        notes[scancode]:setVolume(0)
-      end
+      envelopes[scancode]:triggerAttack()
+      notes[scancode]:stop()
       notes[scancode]:play()
       text = "sine " .. scancode
     end
@@ -125,37 +108,17 @@ end
 function love.keyreleased(key, scancode)
   if notes[scancode] ~= nil then
     if playing[scancode] then
-      attacking[scancode] = false
-      release[scancode] = RELEASE
-      releasing[scancode] = true
+      playing[scancode] = false
+      envelopes[scancode]:triggerRelease()
+      -- TODO: should the sound be stopped after release is done?
     end
   end
 end
 
 function love.update(dt)
-  for k, v in pairs(release) do
-    if attacking[k] then
-      if v < ATTACK then
-        local newValue = release[k] + dt
-        release[k] = newValue
-        notes[k]:setVolume(newValue / ATTACK)
-      else
-        attacking[k] = false
-      end
-    elseif releasing[k] then
-      -- print(k .. " " .. v .. " " .. dt)
-      if v > 0 then
-        local newVolume = release[k] - dt
-        release[k] = newVolume
-        notes[k]:setVolume(newVolume)
-      else
-        release[k] = 0
-        notes[k]:stop()
-        notes[k]:setVolume(1)
-        releasing[k] = false
-        playing[k] = false
-      end
-    end
+  for k, envelope in pairs(envelopes) do
+    envelope:update(dt)
+    notes[k]:setVolume(envelope.volume)
   end
 end
 
