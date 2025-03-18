@@ -15,6 +15,7 @@ local ADSREnvelope = {
 
   state = NOT_STARTED,
   value = 0,
+  shouldStop = false,
 }
 ADSREnvelope.__index = ADSREnvelope
 
@@ -28,6 +29,7 @@ function ADSREnvelope:create(options)
 end
 
 function ADSREnvelope:update(dt)
+  self.shouldStop = false
   if self.state == ATTACKING then
     self.value = self.value + dt
     self.volume = self.value / self.attack
@@ -53,6 +55,7 @@ function ADSREnvelope:update(dt)
       self.volume = 0
       self.value = 0
       self.state = NOT_STARTED
+      self.shouldStop = true
     end
   end
 end

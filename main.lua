@@ -1,4 +1,5 @@
 local ADSREnvelope = require("ADSREnvelope")
+local Sample = require("Sample")
 
 local SAMPLES = {
   kick = "kick.mp3",
@@ -65,6 +66,7 @@ function love.load()
   playing.b = false
   playing.n = false
   playing.m = false
+  playing[","] = false
 
   local envelopeOptions = { attack = ATTACK, decay = DECAY, sustain = SUSTAIN, release = RELEASE }
   envelopes.z = ADSREnvelope:create(envelopeOptions)
@@ -74,6 +76,7 @@ function love.load()
   envelopes.b = ADSREnvelope:create(envelopeOptions)
   envelopes.n = ADSREnvelope:create(envelopeOptions)
   envelopes.m = ADSREnvelope:create(envelopeOptions)
+  envelopes[","] = ADSREnvelope:create(envelopeOptions)
 end
 
 local function play(sample)
@@ -98,7 +101,6 @@ function love.keypressed(key, scancode, isRepeat)
     if not playing[scancode] then
       playing[scancode] = true
       envelopes[scancode]:triggerAttack()
-      notes[scancode]:stop()
       notes[scancode]:play()
       text = "sine " .. scancode
     end
@@ -110,7 +112,6 @@ function love.keyreleased(key, scancode)
     if playing[scancode] then
       playing[scancode] = false
       envelopes[scancode]:triggerRelease()
-      -- TODO: should the sound be stopped after release is done?
     end
   end
 end
@@ -118,7 +119,11 @@ end
 function love.update(dt)
   for k, envelope in pairs(envelopes) do
     envelope:update(dt)
-    notes[k]:setVolume(envelope.volume)
+    if envelope.shouldStop then
+      notes[k]:stop()
+    else
+      notes[k]:setVolume(envelope.volume)
+    end
   end
 end
 
