@@ -11,6 +11,8 @@ local SAMPLES = {
 }
 local TET12 = 1.059463
 local INSTRUMENT = "sine"
+local ATTACK = 0.05
+local RELEASE = 0.019 -- any value lower than 0.019 will cause clicks
 
 local sfx = {}
 local text = ""
@@ -21,6 +23,9 @@ end
 
 local notes = {}
 local playing = {}
+local release = {}
+local releasing = {}
+local attacking = {}
 
 local function loadSample(name, file)
   sfx[name] = love.audio.newSource("sfx/" .. file, "static")
@@ -57,6 +62,30 @@ function love.load()
   playing.b = false
   playing.n = false
   playing.m = false
+
+  release.z = 0
+  release.x = 0
+  release.c = 0
+  release.v = 0
+  release.b = 0
+  release.n = 0
+  release.m = 0
+
+  releasing.z = false
+  releasing.x = false
+  releasing.c = false
+  releasing.v = false
+  releasing.b = false
+  releasing.n = false
+  releasing.m = false
+
+  attacking.z = false
+  attacking.x = false
+  attacking.c = false
+  attacking.v = false
+  attacking.b = false
+  attacking.n = false
+  attacking.m = false
 end
 
 local function play(sample)
@@ -80,6 +109,13 @@ function love.keypressed(key, scancode, isRepeat)
   elseif notes[scancode] ~= nil then
     if not playing[scancode] then
       playing[scancode] = true
+      if ATTACK == 0 then
+        notes[scancode]:setVolume(1)
+        notes[scancode]:play()
+      else
+        attacking[scancode] = true
+        notes[scancode]:setVolume(0)
+      end
       notes[scancode]:play()
       text = "sine " .. scancode
     end
@@ -89,13 +125,38 @@ end
 function love.keyreleased(key, scancode)
   if notes[scancode] ~= nil then
     if playing[scancode] then
-      playing[scancode] = false
-      notes[scancode]:stop()
+      attacking[scancode] = false
+      release[scancode] = RELEASE
+      releasing[scancode] = true
     end
   end
 end
 
 function love.update(dt)
+  for k, v in pairs(release) do
+    if attacking[k] then
+      if v < ATTACK then
+        local newValue = release[k] + dt
+        release[k] = newValue
+        notes[k]:setVolume(newValue / ATTACK)
+      else
+        attacking[k] = false
+      end
+    elseif releasing[k] then
+      -- print(k .. " " .. v .. " " .. dt)
+      if v > 0 then
+        local newVolume = release[k] - dt
+        release[k] = newVolume
+        notes[k]:setVolume(newVolume)
+      else
+        release[k] = 0
+        notes[k]:stop()
+        notes[k]:setVolume(1)
+        releasing[k] = false
+        playing[k] = false
+      end
+    end
+  end
 end
 
 function love.draw()
