@@ -12,12 +12,6 @@ local SAMPLES = {
   piano = "piano.ogg",
 }
 
-local INSTRUMENT = "sine"
-local ATTACK = 0.1
-local DECAY = 0.1
-local SUSTAIN = 0.8
-local RELEASE = 0.1 -- any value lower than 0.019 will cause clicks
-
 local bpm = 120
 local sfx = {}
 local text = ""
@@ -25,17 +19,20 @@ local stepBuffer = 0
 local step = 0
 local selectedStep = 0
 local steps = {}
-for i = 1,16 do
-  steps[i] = false
+for i = 0, 7 do
+  local innerSteps = {}
+  steps[i] = innerSteps
+  for j = 0, 15 do
+    innerSteps[j] = false
+  end
 end
-local stepInstruments = {}
-for i = 1,16 do
-  stepInstruments[i] = nil
+local patternInstruments = {}
+for i = 0, 7 do
+  patternInstruments[i] = nil
 end
 local sequencerJustStarted = false
 local sequencerPlaying = false
-
-local notes = {}
+local selectedPattern = 0
 
 local function loadSample(name, file)
   sfx[name] = love.audio.newSource("sfx/" .. file, "static")
@@ -43,26 +40,11 @@ local function loadSample(name, file)
 end
 
 function love.load()
+  love.graphics.setNewFont("font.otf", 12)
+
   for name, file in pairs(SAMPLES) do
     loadSample(name, file)
   end
-
-  local baseNote = Sample:create({ url = "sfx/" .. SAMPLES[INSTRUMENT] })
-  baseNote.rootNote = 69
-  baseNote.envelope.attack = ATTACK
-  baseNote.envelope.decay = DECAY
-  baseNote.envelope.sustain = SUSTAIN
-  baseNote.envelope.release = RELEASE
-  baseNote.volume = 0.8
-
-  notes.z = baseNote:clone():setNote(60)
-  notes.x = baseNote:clone():setNote(62)
-  notes.c = baseNote:clone():setNote(64)
-  notes.v = baseNote:clone():setNote(65)
-  notes.b = baseNote:clone():setNote(67)
-  notes.n = baseNote:clone():setNote(69)
-  notes.m = baseNote:clone():setNote(71)
-  notes[","] = baseNote:clone():setNote(72)
 end
 
 local function play(sample)
@@ -71,35 +53,41 @@ local function play(sample)
 end
 
 function love.keypressed(key, scancode, isRepeat)
-  if scancode == "w" then
-    steps[selectedStep] = not steps[selectedStep]
-  elseif scancode == "a" then
+  if scancode == "a" then
     selectedStep = (selectedStep - 1) % 16
-  elseif scancode == "s" then
-    local current = stepInstruments[selectedStep]
-    if current == nil then
-      stepInstruments[selectedStep] = "kick"
-    elseif current == "kick" then
-      stepInstruments[selectedStep] = "snare"
-    elseif current == "snare" then
-      stepInstruments[selectedStep] = "hihat"
-    elseif current == "hihat" then
-      stepInstruments[selectedStep] = "tom1"
-    elseif current == "tom1" then
-      stepInstruments[selectedStep] = "tom2"
-    elseif current == "tom2" then
-      stepInstruments[selectedStep] = "tom3"
-    elseif current == "tom3" then
-      stepInstruments[selectedStep] = "sine"
-    elseif current == "sine" then
-      stepInstruments[selectedStep] = "casio"
-    elseif current == "casio" then
-      stepInstruments[selectedStep] = "piano"
-    elseif current == "piano" then
-      stepInstruments[selectedStep] = nil
-    end
   elseif scancode == "d" then
     selectedStep = (selectedStep + 1) % 16
+  elseif scancode == "w" then
+    selectedPattern = (selectedPattern - 1) % 8
+  elseif scancode == "s" then
+    selectedPattern = (selectedPattern + 1) % 8
+
+  elseif scancode == "z" then
+    steps[selectedPattern][selectedStep] = not steps[selectedPattern][selectedStep]
+  elseif scancode == "lshift" then
+    local current = patternInstruments[selectedPattern]
+    if current == nil then
+      patternInstruments[selectedPattern] = "kick"
+    elseif current == "kick" then
+      patternInstruments[selectedPattern] = "snare"
+    elseif current == "snare" then
+      patternInstruments[selectedPattern] = "hihat"
+    elseif current == "hihat" then
+      patternInstruments[selectedPattern] = "tom1"
+    elseif current == "tom1" then
+      patternInstruments[selectedPattern] = "tom2"
+    elseif current == "tom2" then
+      patternInstruments[selectedPattern] = "tom3"
+    elseif current == "tom3" then
+      patternInstruments[selectedPattern] = "sine"
+    elseif current == "sine" then
+      patternInstruments[selectedPattern] = "casio"
+    elseif current == "casio" then
+      patternInstruments[selectedPattern] = "piano"
+    elseif current == "piano" then
+      patternInstruments[selectedPattern] = nil
+    end
+
   elseif scancode == "return" then
     if sequencerPlaying then
       sequencerPlaying = false
@@ -109,32 +97,21 @@ function love.keypressed(key, scancode, isRepeat)
       sequencerJustStarted = true
       sequencerPlaying = true
     end
-  elseif notes[scancode] ~= nil then
-    notes[scancode]:on()
-    text = INSTRUMENT .. " " .. scancode
   end
 end
 
-function love.keyreleased(key, scancode)
-  if notes[scancode] ~= nil then
-    notes[scancode]:off()
-  end
-end
-
-function playStep(step)
-  if steps[step] then
-    local instrument = stepInstruments[step]
-    if instrument ~= nil then
-      play(sfx[instrument])
+local function playStep(step)
+  for pattern = 0, 7 do
+    if steps[pattern][step] then
+      local instrument = patternInstruments[pattern]
+      if instrument ~= nil then
+        play(sfx[instrument])
+      end
     end
   end
 end
 
 function love.update(dt)
-  for _, sample in pairs(notes) do
-    sample:update(dt)
-  end
-
   if sequencerPlaying then
     if sequencerJustStarted then
       playStep(step)
@@ -150,26 +127,43 @@ function love.update(dt)
   end
 end
 
+local function drawPattern(patternIx, x, y)
+  love.graphics.setColor(1, 1, 1)
+  love.graphics.print(string.format("%X", patternIx), x + 8, y + 5)
+
+  for i = 0, 15 do
+    local mode = "line"
+    local highlight = (sequencerPlaying and i == step) or steps[patternIx][i]
+    if highlight then mode = "fill" end
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.rectangle(mode, x + 28 + i * 28, y, 24, 24, 2, 2)
+    if highlight then
+      love.graphics.setColor(0, 0, 0)
+    else
+      love.graphics.setColor(1, 1, 1)
+    end
+    local label
+    if patternIx == selectedPattern and i == selectedStep then
+      label = string.format("[%X]", i)
+    else
+      label = string.format(" %X ", i)
+    end
+    love.graphics.print(label, x + 28 + i * 28 + 1, y + 5)
+  end
+
+  love.graphics.setColor(1, 1, 1)
+  local instrument = patternInstruments[patternIx]
+  love.graphics.print(instrument or "(no instrument)", x + 28 * 16 + 28, y + 5)
+end
+
 function love.draw()
   love.graphics.setColor(1, 1, 1)
   love.graphics.print(text, 10, 10)
   local seqText = "NOT PLAYING"
   if sequencerPlaying then seqText = "PLAYING" end
   love.graphics.print(seqText, 10, 20)
-  love.graphics.print("^", 10 + selectedStep * 28 + 7, 95)
-  love.graphics.print(stepInstruments[selectedStep] or "(no instrument)", 10, 105)
 
-  for i = 0, 15 do
-    local mode = "line"
-    local highlight = (sequencerPlaying and i == step) or steps[i]
-    if highlight then mode = "fill" end
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.rectangle(mode, 10 + i * 28, 70, 24, 24, 2, 2)
-    if highlight then
-      love.graphics.setColor(0, 0, 0)
-    else
-      love.graphics.setColor(1, 1, 1)
-    end
-    love.graphics.print(string.format("%X", i), 10 + i * 28 + 8, 75)
+  for i = 0, 7 do
+    drawPattern(i, 10, 50 + 30 * i)
   end
 end
