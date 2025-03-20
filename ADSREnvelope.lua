@@ -9,7 +9,7 @@ local ADSREnvelope = {
   decay = 0,
   sustain = 1,
   release = 0,
-  resetVolumeOnAttack = false,
+  resetVolumeOnAttack = true,
 
   volume = 0,
 
@@ -67,6 +67,9 @@ end
 function ADSREnvelope:triggerAttack()
   if self.resetVolumeOnAttack then
     self.volume = 0
+    if self.attack == 0 then
+      self.volume = 1
+    end
   end
   self.value = self.volume * self.attack
   self.state = ATTACKING

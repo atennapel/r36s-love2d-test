@@ -45,11 +45,12 @@ function Sample:setNote(midiNote)
 end
 
 function Sample:on()
-  if not self.playing then
-    self.playing = true
-    self.envelope:triggerAttack()
-    self.source:play()
+  if self.playing then
+    self.source:stop()
   end
+  self.playing = true
+  self.envelope:triggerAttack()
+  self.source:play()
 end
 
 function Sample:off()
@@ -60,12 +61,11 @@ function Sample:off()
 end
 
 function Sample:update(dt)
-  self.envelope:update(dt)
-  if self.envelope.shouldStop then
-    self.source:stop()
-  else
-    self.source:setVolume(self.volume * self.envelope.volume)
-  end
+  -- self.envelope:update(dt)
+  -- self.source:setVolume(self.volume * self.envelope.volume)
+  -- if self.envelope.shouldStop then
+  --  self.source:stop()
+  -- end
 end
 
 return Sample

@@ -169,14 +169,21 @@ local function handleInput(dt)
     end
   end
 
+  if bpm > 1 and keyRepeat("l", 0.1) then
+    bpm = bpm - 1
+  elseif bpm < 999 and keyRepeat("r", 0.1) then
+    bpm = bpm + 1
+  end
+
   prevkeys = lprevkeys
 end
 
 function love.update(dt)
   handleInput(dt)
 
-  for _, sample in pairs(sfx) do
+  for name, sample in pairs(sfx) do
     sample:update(dt)
+    if name == "kick" then print(sample.envelope.volume) end
   end
 
   if sequencerPlaying then
@@ -240,7 +247,7 @@ function love.draw()
   love.graphics.print(text, 10, 10)
   local seqText = "NOT PLAYING"
   if sequencerPlaying then seqText = "PLAYING" end
-  love.graphics.print(seqText, 10, 20)
+  love.graphics.print(seqText .. " (bpm " .. bpm .. ")", 10, 20)
 
   for i = 0, 7 do
     drawPattern(i, 10, 50 + 30 * i)
