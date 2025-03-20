@@ -12,6 +12,8 @@ local SAMPLES = {
   piano = "piano.ogg",
 }
 
+local prevkeys = {}
+local keys = {}
 local bpm = 120
 local sfx = {}
 local text = ""
@@ -51,16 +53,9 @@ function love.load()
 end
 
 function love.keypressed(key, scancode, isRepeat)
-  if scancode == "a" then
-    selectedStep = (selectedStep - 1) % 16
-  elseif scancode == "d" then
-    selectedStep = (selectedStep + 1) % 16
-  elseif scancode == "w" then
-    selectedPattern = (selectedPattern - 1) % 8
-  elseif scancode == "s" then
-    selectedPattern = (selectedPattern + 1) % 8
+  keys[scancode] = 0
 
-  elseif scancode == "z" then
+  if scancode == "z" then
     steps[selectedPattern][selectedStep] = not steps[selectedPattern][selectedStep]
   elseif scancode == "lshift" then
     local current = patternInstruments[selectedPattern]
@@ -131,7 +126,55 @@ local function playStep(step)
   end
 end
 
+local function keyRepeat(scancode, interval)
+  local value = keys[scancode]
+  if value ~= nil then
+    if value >= interval then
+      keys[scancode] = value - interval
+      return true
+    elseif prevkeys[scancode] == nil then
+      return true
+    end
+  end
+  return false
+end
+
+local function handleInput(dt)
+  local lprevkeys = {}
+  for scancode, v in pairs(keys) do
+    lprevkeys[scancode] = v
+    if love.keyboard.isScancodeDown(scancode) then
+      keys[scancode] = v + dt
+    else
+      keys[scancode] = nil
+    end
+  end
+
+  if keyRepeat("a", 0.1) then
+    if selectedStep > 0 then
+      selectedStep = selectedStep - 1
+    end
+  elseif keyRepeat("d", 0.1) then
+    if selectedStep < 15 then
+      selectedStep = selectedStep + 1
+    end
+  end
+  if keyRepeat("w", 0.1) then
+    if selectedPattern > 0 then
+      selectedPattern = selectedPattern - 1
+    end
+  elseif keyRepeat("s", 0.1) then
+    if selectedPattern < 7 then
+      selectedPattern = selectedPattern + 1
+    end
+  end
+
+  prevkeys = lprevkeys
+end
+
 function love.update(dt)
+  handleInput(dt)
+
   for _, sample in pairs(sfx) do
     sample:update(dt)
   end
