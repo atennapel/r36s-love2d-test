@@ -34,22 +34,20 @@ local sequencerJustStarted = false
 local sequencerPlaying = false
 local selectedPattern = 0
 
-local function loadSample(name, file)
-  sfx[name] = love.audio.newSource("sfx/" .. file, "static")
-  print("loaded sample " .. name .. " from " .. file)
-end
-
 function love.load()
   love.graphics.setNewFont("font.otf", 12)
 
   for name, file in pairs(SAMPLES) do
-    loadSample(name, file)
+    sfx[name] = Sample:create({ url = "sfx/" .. file })
+    print("loaded sample " .. name .. " from " .. file)
   end
-end
 
-local function play(sample)
-  sample:stop()
-  sample:play()
+  sfx.sine.rootNote = 69
+  sfx.sine:setNote(60)
+  sfx.casio.rootNote = 69
+  sfx.casio:setNote(60)
+  sfx.piano.rootNote = 45
+  sfx.piano:setNote(60)
 end
 
 function love.keypressed(key, scancode, isRepeat)
@@ -88,11 +86,31 @@ function love.keypressed(key, scancode, isRepeat)
       patternInstruments[selectedPattern] = nil
     end
 
+  elseif scancode == "space" then
+    local instrument = patternInstruments[selectedPattern]
+    if instrument ~= nil then
+      local sample = sfx[instrument]
+      if sample.note < 127 then
+        sample:setNote(sample.note + 1)
+      end
+    end
+  elseif scancode == "b" then
+    local instrument = patternInstruments[selectedPattern]
+    if instrument ~= nil then
+      local sample = sfx[instrument]
+      if sample.note > 0 then
+        sample:setNote(sample.note - 1)
+      end
+    end
+
   elseif scancode == "return" then
     if sequencerPlaying then
       sequencerPlaying = false
       step = 0
       stepBuffer = 0
+      for _, sample in pairs(sfx) do
+        sample:off()
+      end
     else
       sequencerJustStarted = true
       sequencerPlaying = true
@@ -102,16 +120,22 @@ end
 
 local function playStep(step)
   for pattern = 0, 7 do
-    if steps[pattern][step] then
-      local instrument = patternInstruments[pattern]
-      if instrument ~= nil then
-        play(sfx[instrument])
+    local instrument = patternInstruments[pattern]
+    if instrument ~= nil then
+      if steps[pattern][step] then
+        sfx[instrument]:on()
+      else
+        sfx[instrument]:off()
       end
     end
   end
 end
 
 function love.update(dt)
+  for _, sample in pairs(sfx) do
+    sample:update(dt)
+  end
+
   if sequencerPlaying then
     if sequencerJustStarted then
       playStep(step)
@@ -124,6 +148,14 @@ function love.update(dt)
       step = (step + 1) % 16
       playStep(step)
     end
+  end
+end
+
+local function hexstr2(n)
+  if n < 16 then
+    return string.format("0%X", n)
+  else
+    return string.format("%X", n)
   end
 end
 
@@ -153,7 +185,11 @@ local function drawPattern(patternIx, x, y)
 
   love.graphics.setColor(1, 1, 1)
   local instrument = patternInstruments[patternIx]
-  love.graphics.print(instrument or "(no instrument)", x + 28 * 16 + 28, y + 5)
+  local instrumentText = "(no instrument)"
+  if instrument ~= nil then
+    instrumentText = instrument .. "(" .. hexstr2(sfx[instrument].note) .. ")"
+  end
+  love.graphics.print(instrumentText, x + 28 * 16 + 28, y + 5)
 end
 
 function love.draw()

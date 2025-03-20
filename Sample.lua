@@ -7,6 +7,7 @@ local Sample = {
   volume = 0.8,
   playing = false,
   rootNote = 60,
+  note = 60,
 }
 Sample.__index = Sample
 
@@ -38,6 +39,7 @@ local function getPitchForNote(rootNote, midiNote)
 end
 
 function Sample:setNote(midiNote)
+  self.note = midiNote
   self.source:setPitch(getPitchForNote(self.rootNote, midiNote))
   return self
 end
