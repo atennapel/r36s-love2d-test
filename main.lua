@@ -1,4 +1,3 @@
-local ADSREnvelope = require("ADSREnvelope")
 local Sample = require("Sample")
 
 local SAMPLES = {
@@ -14,22 +13,29 @@ local SAMPLES = {
 }
 
 local INSTRUMENT = "sine"
-local ATTACK = 1
-local DECAY = 0.5
+local ATTACK = 0.1
+local DECAY = 0.1
 local SUSTAIN = 0.8
-local RELEASE = 1 -- any value lower than 0.019 will cause clicks
+local RELEASE = 0.1 -- any value lower than 0.019 will cause clicks
 
+local bpm = 120
 local sfx = {}
 local text = ""
-
-local TET12 = 1.059463
-local function getPitchForNote(midiNote)
-  return TET12 ^ (midiNote - 20 - 49)
+local stepBuffer = 0
+local step = 0
+local selectedStep = 0
+local steps = {}
+for i = 1,16 do
+  steps[i] = false
 end
+local stepInstruments = {}
+for i = 1,16 do
+  stepInstruments[i] = nil
+end
+local sequencerJustStarted = false
+local sequencerPlaying = false
 
 local notes = {}
-local playing = {}
-local envelopes = {}
 
 local function loadSample(name, file)
   sfx[name] = love.audio.newSource("sfx/" .. file, "static")
@@ -41,42 +47,22 @@ function love.load()
     loadSample(name, file)
   end
 
-  notes.z = sfx[INSTRUMENT]:clone()
-  notes.x = sfx[INSTRUMENT]:clone()
-  notes.c = sfx[INSTRUMENT]:clone()
-  notes.v = sfx[INSTRUMENT]:clone()
-  notes.b = sfx[INSTRUMENT]:clone()
-  notes.n = sfx[INSTRUMENT]:clone()
-  notes.m = sfx[INSTRUMENT]:clone()
-  notes[","] = sfx[INSTRUMENT]:clone()
+  local baseNote = Sample:create({ url = "sfx/" .. SAMPLES[INSTRUMENT] })
+  baseNote.rootNote = 69
+  baseNote.envelope.attack = ATTACK
+  baseNote.envelope.decay = DECAY
+  baseNote.envelope.sustain = SUSTAIN
+  baseNote.envelope.release = RELEASE
+  baseNote.volume = 0.8
 
-  notes.z:setPitch(getPitchForNote(60))
-  notes.x:setPitch(getPitchForNote(62))
-  notes.c:setPitch(getPitchForNote(64))
-  notes.v:setPitch(getPitchForNote(65))
-  notes.b:setPitch(getPitchForNote(67))
-  notes.n:setPitch(getPitchForNote(69))
-  notes.m:setPitch(getPitchForNote(71))
-  notes[","]:setPitch(getPitchForNote(72))
-
-  playing.z = false
-  playing.x = false
-  playing.c = false
-  playing.v = false
-  playing.b = false
-  playing.n = false
-  playing.m = false
-  playing[","] = false
-
-  local envelopeOptions = { attack = ATTACK, decay = DECAY, sustain = SUSTAIN, release = RELEASE }
-  envelopes.z = ADSREnvelope:create(envelopeOptions)
-  envelopes.x = ADSREnvelope:create(envelopeOptions)
-  envelopes.c = ADSREnvelope:create(envelopeOptions)
-  envelopes.v = ADSREnvelope:create(envelopeOptions)
-  envelopes.b = ADSREnvelope:create(envelopeOptions)
-  envelopes.n = ADSREnvelope:create(envelopeOptions)
-  envelopes.m = ADSREnvelope:create(envelopeOptions)
-  envelopes[","] = ADSREnvelope:create(envelopeOptions)
+  notes.z = baseNote:clone():setNote(60)
+  notes.x = baseNote:clone():setNote(62)
+  notes.c = baseNote:clone():setNote(64)
+  notes.v = baseNote:clone():setNote(65)
+  notes.b = baseNote:clone():setNote(67)
+  notes.n = baseNote:clone():setNote(69)
+  notes.m = baseNote:clone():setNote(71)
+  notes[","] = baseNote:clone():setNote(72)
 end
 
 local function play(sample)
@@ -86,47 +72,104 @@ end
 
 function love.keypressed(key, scancode, isRepeat)
   if scancode == "w" then
-    play(sfx.kick)
-    text = "kick"
+    steps[selectedStep] = not steps[selectedStep]
   elseif scancode == "a" then
-    play(sfx.snare)
-    text = "snare"
+    selectedStep = (selectedStep - 1) % 16
   elseif scancode == "s" then
-    play(sfx.hihat)
-    text = "hihat"
-  elseif scancode == "d" then
-    play(sfx.tom1)
-    text = "tom1"
-  elseif notes[scancode] ~= nil then
-    if not playing[scancode] then
-      playing[scancode] = true
-      envelopes[scancode]:triggerAttack()
-      notes[scancode]:play()
-      text = "sine " .. scancode
+    local current = stepInstruments[selectedStep]
+    if current == nil then
+      stepInstruments[selectedStep] = "kick"
+    elseif current == "kick" then
+      stepInstruments[selectedStep] = "snare"
+    elseif current == "snare" then
+      stepInstruments[selectedStep] = "hihat"
+    elseif current == "hihat" then
+      stepInstruments[selectedStep] = "tom1"
+    elseif current == "tom1" then
+      stepInstruments[selectedStep] = "tom2"
+    elseif current == "tom2" then
+      stepInstruments[selectedStep] = "tom3"
+    elseif current == "tom3" then
+      stepInstruments[selectedStep] = "sine"
+    elseif current == "sine" then
+      stepInstruments[selectedStep] = "casio"
+    elseif current == "casio" then
+      stepInstruments[selectedStep] = "piano"
+    elseif current == "piano" then
+      stepInstruments[selectedStep] = nil
     end
+  elseif scancode == "d" then
+    selectedStep = (selectedStep + 1) % 16
+  elseif scancode == "return" then
+    if sequencerPlaying then
+      sequencerPlaying = false
+      step = 0
+      stepBuffer = 0
+    else
+      sequencerJustStarted = true
+      sequencerPlaying = true
+    end
+  elseif notes[scancode] ~= nil then
+    notes[scancode]:on()
+    text = INSTRUMENT .. " " .. scancode
   end
 end
 
 function love.keyreleased(key, scancode)
   if notes[scancode] ~= nil then
-    if playing[scancode] then
-      playing[scancode] = false
-      envelopes[scancode]:triggerRelease()
+    notes[scancode]:off()
+  end
+end
+
+function playStep(step)
+  if steps[step] then
+    local instrument = stepInstruments[step]
+    if instrument ~= nil then
+      play(sfx[instrument])
     end
   end
 end
 
 function love.update(dt)
-  for k, envelope in pairs(envelopes) do
-    envelope:update(dt)
-    if envelope.shouldStop then
-      notes[k]:stop()
-    else
-      notes[k]:setVolume(envelope.volume)
+  for _, sample in pairs(notes) do
+    sample:update(dt)
+  end
+
+  if sequencerPlaying then
+    if sequencerJustStarted then
+      playStep(step)
+    end
+    sequencerJustStarted = false
+    stepBuffer = stepBuffer + dt
+    local target = (60 / bpm) / 4
+    if stepBuffer >= target then
+      stepBuffer = stepBuffer - target
+      step = (step + 1) % 16
+      playStep(step)
     end
   end
 end
 
 function love.draw()
+  love.graphics.setColor(1, 1, 1)
   love.graphics.print(text, 10, 10)
+  local seqText = "NOT PLAYING"
+  if sequencerPlaying then seqText = "PLAYING" end
+  love.graphics.print(seqText, 10, 20)
+  love.graphics.print("^", 10 + selectedStep * 28 + 7, 95)
+  love.graphics.print(stepInstruments[selectedStep] or "(no instrument)", 10, 105)
+
+  for i = 0, 15 do
+    local mode = "line"
+    local highlight = (sequencerPlaying and i == step) or steps[i]
+    if highlight then mode = "fill" end
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.rectangle(mode, 10 + i * 28, 70, 24, 24, 2, 2)
+    if highlight then
+      love.graphics.setColor(0, 0, 0)
+    else
+      love.graphics.setColor(1, 1, 1)
+    end
+    love.graphics.print(string.format("%X", i), 10 + i * 28 + 8, 75)
+  end
 end

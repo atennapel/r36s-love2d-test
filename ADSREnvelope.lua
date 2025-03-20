@@ -28,6 +28,10 @@ function ADSREnvelope:create(options)
   return envelope
 end
 
+function ADSREnvelope:clone()
+  return ADSREnvelope:create(self)
+end
+
 function ADSREnvelope:update(dt)
   self.shouldStop = false
   if self.state == ATTACKING then
