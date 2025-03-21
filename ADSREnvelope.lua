@@ -9,22 +9,24 @@ local ADSREnvelope = {
   decay = 0,
   sustain = 1,
   release = 0,
+  volumeScaling = 1,
   resetVolumeOnAttack = true,
 
-  volume = 0,
+  source = nil,
 
   state = NOT_STARTED,
   value = 0,
-  shouldStop = false,
+  volume = 0,
 }
 ADSREnvelope.__index = ADSREnvelope
 
-function ADSREnvelope:create(options)
-  local envelope = {}
+function ADSREnvelope:create(source, volumeScaling, options)
+  local envelope = setmetatable({}, ADSREnvelope)
   for k, v in pairs(options or {}) do
     envelope[k] = v
   end
-  setmetatable(envelope, ADSREnvelope)
+  envelope.source = source
+  envelope.volumeScaling = volumeScaling
   return envelope
 end
 
@@ -32,8 +34,11 @@ function ADSREnvelope:clone()
   return ADSREnvelope:create(self)
 end
 
+function ADSREnvelope:updateVolume()
+  self.source:setVolume(self.volume * self.volumeScaling)
+end
+
 function ADSREnvelope:update(dt)
-  self.shouldStop = false
   if self.state == ATTACKING then
     self.value = self.value + dt
     self.volume = self.value / self.attack
@@ -56,12 +61,13 @@ function ADSREnvelope:update(dt)
     self.value = self.value + dt
     self.volume = (1 - (self.value / self.release)) * self.sustain
     if self.value >= self.release then
+      self.source:stop()
       self.volume = 0
       self.value = 0
       self.state = NOT_STARTED
-      self.shouldStop = true
     end
   end
+  self:updateVolume()
 end
 
 function ADSREnvelope:triggerAttack()
@@ -71,6 +77,9 @@ function ADSREnvelope:triggerAttack()
       self.volume = 1
     end
   end
+  self:updateVolume()
+  self.source:stop()
+  self.source:play()
   self.value = self.volume * self.attack
   self.state = ATTACKING
 end
@@ -78,6 +87,10 @@ end
 function ADSREnvelope:triggerRelease()
   self.value = (1 - (self.volume / self.sustain)) * self.release
   self.state = RELEASING
+end
+
+function ADSREnvelope:show()
+  return "ADSREnvelope(" .. self.state .. ", " .. self.value ..  ")"
 end
 
 return ADSREnvelope

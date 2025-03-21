@@ -5,20 +5,20 @@ local Sample = {
   source = nil,
   envelope = nil,
   volume = 0.8,
-  playing = false,
   rootNote = 60,
   note = 60,
 }
 Sample.__index = Sample
 
 function Sample:create(options)
-  local object = {}
+  local object = setmetatable({}, Sample)
   for k, v in pairs(options or {}) do
     object[k] = v
   end
-  setmetatable(object, Sample)
-  object.source = love.audio.newSource(object.url, "static")
-  object.envelope = ADSREnvelope:create()
+  local source = love.audio.newSource(object.url, "static")
+  source:setVolume(object.volume)
+  object.source = source
+  object.envelope = ADSREnvelope:create(source, object.volume)
   return object
 end
 
@@ -28,8 +28,10 @@ function Sample:clone()
     object[k] = v
   end
   setmetatable(object, Sample)
-  object.source = self.source:clone()
+  local newSource = self.source:clone()
+  object.source = newSource
   object.envelope = self.envelope:clone()
+  object.envelope.source = newSource
   return object
 end
 
@@ -45,27 +47,19 @@ function Sample:setNote(midiNote)
 end
 
 function Sample:on()
-  if self.playing then
-    self.source:stop()
-  end
-  self.playing = true
   self.envelope:triggerAttack()
-  self.source:play()
 end
 
 function Sample:off()
-  if self.playing then
-    self.playing = false
-    self.envelope:triggerRelease()
-  end
+  self.envelope:triggerRelease()
 end
 
 function Sample:update(dt)
-  -- self.envelope:update(dt)
-  -- self.source:setVolume(self.volume * self.envelope.volume)
-  -- if self.envelope.shouldStop then
-  --  self.source:stop()
-  -- end
+  self.envelope:update(dt)
+end
+
+function Sample:show()
+  return "Sample(" .. self.url .. ", " .. self.envelope:show() .. ")"
 end
 
 return Sample

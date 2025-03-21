@@ -16,7 +16,6 @@ local prevkeys = {}
 local keys = {}
 local bpm = 120
 local sfx = {}
-local text = ""
 local stepBuffer = 0
 local step = 0
 local selectedStep = 0
@@ -31,6 +30,10 @@ end
 local patternInstruments = {}
 for i = 0, 7 do
   patternInstruments[i] = nil
+end
+local patternSustain = {}
+for i = 0, 7 do
+  patternSustain[i] = false
 end
 local sequencerJustStarted = false
 local sequencerPlaying = false
@@ -80,6 +83,18 @@ function love.keypressed(key, scancode, isRepeat)
     elseif current == "piano" then
       patternInstruments[selectedPattern] = nil
     end
+  elseif scancode == "esc" or scancode == "q" then
+    patternSustain[selectedPattern] = not patternSustain[selectedPattern]
+  elseif scancode == "x" then
+    local sample = sfx[patternInstruments[selectedPattern]]
+    if sample.envelope.attack > 0 then
+      sample.envelope.attack = sample.envelope.attack - 0.1
+    end
+  elseif scancode == "y" then
+    local sample = sfx[patternInstruments[selectedPattern]]
+    if sample.envelope.attack < 10 then
+      sample.envelope.attack = sample.envelope.attack + 0.1
+    end
 
   elseif scancode == "space" then
     local instrument = patternInstruments[selectedPattern]
@@ -119,7 +134,7 @@ local function playStep(step)
     if instrument ~= nil then
       if steps[pattern][step] then
         sfx[instrument]:on()
-      else
+      elseif not patternSustain[pattern] then
         sfx[instrument]:off()
       end
     end
@@ -181,9 +196,8 @@ end
 function love.update(dt)
   handleInput(dt)
 
-  for name, sample in pairs(sfx) do
+  for _, sample in pairs(sfx) do
     sample:update(dt)
-    if name == "kick" then print(sample.envelope.volume) end
   end
 
   if sequencerPlaying then
@@ -236,15 +250,18 @@ local function drawPattern(patternIx, x, y)
   love.graphics.setColor(1, 1, 1)
   local instrument = patternInstruments[patternIx]
   local instrumentText = "(no instrument)"
+  local sustainText = ""
+  if patternSustain[patternIx] then
+    sustainText = " (s)"
+  end
   if instrument ~= nil then
     instrumentText = instrument .. "(" .. hexstr2(sfx[instrument].note) .. ")"
   end
-  love.graphics.print(instrumentText, x + 28 * 16 + 28, y + 5)
+  love.graphics.print(instrumentText .. sustainText, x + 28 * 16 + 28, y + 5)
 end
 
 function love.draw()
   love.graphics.setColor(1, 1, 1)
-  love.graphics.print(text, 10, 10)
   local seqText = "NOT PLAYING"
   if sequencerPlaying then seqText = "PLAYING" end
   love.graphics.print(seqText .. " (bpm " .. bpm .. ")", 10, 20)
