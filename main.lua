@@ -83,7 +83,7 @@ function love.keypressed(key, scancode, isRepeat)
     elseif current == "piano" then
       patternInstruments[selectedPattern] = nil
     end
-  elseif scancode == "esc" or scancode == "q" then
+  elseif scancode == "escape" then
     patternSustain[selectedPattern] = not patternSustain[selectedPattern]
   elseif scancode == "x" then
     local sample = sfx[patternInstruments[selectedPattern]]
