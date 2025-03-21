@@ -1,8 +1,9 @@
 local NOT_STARTED = 0
-local ATTACKING = 1
-local DECAYING = 2
-local SUSTAINING = 3
-local RELEASING = 4
+local START_ATTACKING = 1
+local ATTACKING = 2
+local DECAYING = 3
+local SUSTAINING = 4
+local RELEASING = 5
 
 local ADSREnvelope = {
   attack = 0,
@@ -39,6 +40,15 @@ function ADSREnvelope:updateVolume()
 end
 
 function ADSREnvelope:update(dt)
+  if self.state == START_ATTACKING then
+    if self.resetVolumeOnAttack then
+      self.volume = 0
+    end
+    self:updateVolume()
+    self.value = self.volume * self.attack
+    self.source:play()
+    self.state = ATTACKING
+  end
   if self.state == ATTACKING then
     self.value = self.value + dt
     self.volume = self.value / self.attack
@@ -47,7 +57,9 @@ function ADSREnvelope:update(dt)
       self.value = 0
       self.state = DECAYING
     end
-  elseif self.state == DECAYING then
+    self:updateVolume()
+  end
+  if self.state == DECAYING then
     self.value = self.value + dt
     self.volume = self.sustain + ((1 - (self.value / self.decay)) * (1 - self.sustain))
     if self.value >= self.decay then
@@ -55,9 +67,12 @@ function ADSREnvelope:update(dt)
       self.value = 0
       self.state = SUSTAINING
     end
-  elseif self.state == SUSTAINING then
+    self:updateVolume()
+  end
+  if self.state == SUSTAINING then
     self.value = self.value + dt
-  elseif self.state == RELEASING then
+  end
+  if self.state == RELEASING then
     self.value = self.value + dt
     self.volume = (1 - (self.value / self.release)) * self.sustain
     if self.value >= self.release then
@@ -66,22 +81,12 @@ function ADSREnvelope:update(dt)
       self.value = 0
       self.state = NOT_STARTED
     end
+    self:updateVolume()
   end
-  self:updateVolume()
 end
 
 function ADSREnvelope:triggerAttack()
-  if self.resetVolumeOnAttack then
-    self.volume = 0
-    if self.attack == 0 then
-      self.volume = 1
-    end
-  end
-  self:updateVolume()
-  self.source:stop()
-  self.source:play()
-  self.value = self.volume * self.attack
-  self.state = ATTACKING
+  self.state = START_ATTACKING
 end
 
 function ADSREnvelope:triggerRelease()

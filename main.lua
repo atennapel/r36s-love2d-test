@@ -196,8 +196,10 @@ end
 function love.update(dt)
   handleInput(dt)
 
-  for _, sample in pairs(sfx) do
+  for name, sample in pairs(sfx) do
+    -- if name == "sine" then print("before", sample.envelope:show()) end
     sample:update(dt)
+    -- if name == "sine" then print("after", sample.envelope:show()) end
   end
 
   if sequencerPlaying then
