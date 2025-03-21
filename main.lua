@@ -1,4 +1,5 @@
 local Sample = require("Sample")
+local Step = require("Step")
 
 local SAMPLES = {
   kick = "kick.mp3",
@@ -24,16 +25,12 @@ for i = 0, 7 do
   local innerSteps = {}
   steps[i] = innerSteps
   for j = 0, 15 do
-    innerSteps[j] = false
+    innerSteps[j] = Step:new()
   end
 end
 local patternInstruments = {}
 for i = 0, 7 do
   patternInstruments[i] = nil
-end
-local patternSustain = {}
-for i = 0, 7 do
-  patternSustain[i] = false
 end
 local sequencerJustStarted = false
 local sequencerPlaying = false
@@ -43,7 +40,7 @@ function love.load()
   love.graphics.setNewFont("font.otf", 12)
 
   for name, file in pairs(SAMPLES) do
-    sfx[name] = Sample:create({ url = "sfx/" .. file })
+    sfx[name] = Sample:new({ url = "sfx/" .. file })
     print("loaded sample " .. name .. " from " .. file)
   end
 
@@ -59,7 +56,7 @@ function love.keypressed(key, scancode, isRepeat)
   keys[scancode] = 0
 
   if scancode == "z" then
-    steps[selectedPattern][selectedStep] = not steps[selectedPattern][selectedStep]
+    steps[selectedPattern][selectedStep]:flip()
   elseif scancode == "lshift" then
     local current = patternInstruments[selectedPattern]
     if current == nil then
@@ -84,7 +81,7 @@ function love.keypressed(key, scancode, isRepeat)
       patternInstruments[selectedPattern] = nil
     end
   elseif scancode == "escape" then
-    patternSustain[selectedPattern] = not patternSustain[selectedPattern]
+    steps[selectedPattern][selectedStep].sustain = not steps[selectedPattern][selectedStep].sustain
   elseif scancode == "x" then
     local sample = sfx[patternInstruments[selectedPattern]]
     if sample.envelope.attack > 0 then
@@ -97,20 +94,14 @@ function love.keypressed(key, scancode, isRepeat)
     end
 
   elseif scancode == "space" then
-    local instrument = patternInstruments[selectedPattern]
-    if instrument ~= nil then
-      local sample = sfx[instrument]
-      if sample.note < 127 then
-        sample:setNote(sample.note + 1)
-      end
+    local step = steps[selectedPattern][selectedStep]
+    if step.note < 127 then
+      step.note = step.note + 1
     end
   elseif scancode == "b" then
-    local instrument = patternInstruments[selectedPattern]
-    if instrument ~= nil then
-      local sample = sfx[instrument]
-      if sample.note > 0 then
-        sample:setNote(sample.note - 1)
-      end
+    local step = steps[selectedPattern][selectedStep]
+    if step.note > 0 then
+      step.note = step.note - 1
     end
 
   elseif scancode == "return" then
@@ -132,11 +123,7 @@ local function playStep(step)
   for pattern = 0, 7 do
     local instrument = patternInstruments[pattern]
     if instrument ~= nil then
-      if steps[pattern][step] then
-        sfx[instrument]:on()
-      elseif not patternSustain[pattern] then
-        sfx[instrument]:off()
-      end
+      steps[pattern][step]:play(sfx[instrument])
     end
   end
 end
@@ -231,10 +218,14 @@ local function drawPattern(patternIx, x, y)
 
   for i = 0, 15 do
     local mode = "line"
-    local highlight = (sequencerPlaying and i == step) or steps[patternIx][i]
+    local step = steps[patternIx][i]
+    local highlight = (sequencerPlaying and i == step) or step.enabled
     if highlight then mode = "fill" end
     love.graphics.setColor(1, 1, 1)
     love.graphics.rectangle(mode, x + 28 + i * 28, y, 24, 24, 2, 2)
+    if step.sustain then
+      love.graphics.rectangle("fill", x + 28 + i * 28 - 4, y + 11, 5, 5)
+    end
     if highlight then
       love.graphics.setColor(0, 0, 0)
     else
@@ -252,14 +243,10 @@ local function drawPattern(patternIx, x, y)
   love.graphics.setColor(1, 1, 1)
   local instrument = patternInstruments[patternIx]
   local instrumentText = "(no instrument)"
-  local sustainText = ""
-  if patternSustain[patternIx] then
-    sustainText = " (s)"
-  end
   if instrument ~= nil then
-    instrumentText = instrument .. "(" .. hexstr2(sfx[instrument].note) .. ")"
+    instrumentText = instrument .. "(" .. hexstr2(steps[patternIx][selectedStep].note) .. ")"
   end
-  love.graphics.print(instrumentText .. sustainText, x + 28 * 16 + 28, y + 5)
+  love.graphics.print(instrumentText, x + 28 * 16 + 28, y + 5)
 end
 
 function love.draw()

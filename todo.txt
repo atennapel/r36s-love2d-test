@@ -1,6 +1,7 @@
 - setting steps while moving around
-- sustain option per step
-- pattern/step class
+X sustain option per step
+X step class
+- pattern class
 - song/pattern/step/instrument editing screens
 - script to create .love zip
 - investigate errors on R36s (can I get logs out of it?)

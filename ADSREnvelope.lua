@@ -21,7 +21,7 @@ local ADSREnvelope = {
 }
 ADSREnvelope.__index = ADSREnvelope
 
-function ADSREnvelope:create(source, volumeScaling, options)
+function ADSREnvelope:new(source, volumeScaling, options)
   local envelope = setmetatable({}, ADSREnvelope)
   for k, v in pairs(options or {}) do
     envelope[k] = v
@@ -32,7 +32,7 @@ function ADSREnvelope:create(source, volumeScaling, options)
 end
 
 function ADSREnvelope:clone()
-  return ADSREnvelope:create(self)
+  return ADSREnvelope:new(self)
 end
 
 function ADSREnvelope:updateVolume()
@@ -46,6 +46,7 @@ function ADSREnvelope:update(dt)
     end
     self:updateVolume()
     self.value = self.volume * self.attack
+    self.source:seek(0)
     self.source:play()
     self.state = ATTACKING
   end

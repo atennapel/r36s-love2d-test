@@ -10,7 +10,7 @@ local Sample = {
 }
 Sample.__index = Sample
 
-function Sample:create(options)
+function Sample:new(options)
   local object = setmetatable({}, Sample)
   for k, v in pairs(options or {}) do
     object[k] = v
@@ -18,7 +18,7 @@ function Sample:create(options)
   local source = love.audio.newSource(object.url, "static")
   source:setVolume(object.volume)
   object.source = source
-  object.envelope = ADSREnvelope:create(source, object.volume)
+  object.envelope = ADSREnvelope:new(source, object.volume)
   return object
 end
 
@@ -43,7 +43,11 @@ end
 function Sample:setNote(midiNote)
   self.note = midiNote
   self.source:setPitch(getPitchForNote(self.rootNote, midiNote))
-  return self
+end
+
+function Sample:setVolume(v)
+  self.volume = v
+  self.envelope.volumeScaling = v
 end
 
 function Sample:on()
