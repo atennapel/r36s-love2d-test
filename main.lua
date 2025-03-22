@@ -1,5 +1,5 @@
 local Sample = require("Sample")
-local Step = require("Step")
+local Pattern = require("Pattern")
 
 local SAMPLES = {
   kick = "kick.mp3",
@@ -22,11 +22,7 @@ local step = 0
 local selectedStep = 0
 local steps = {}
 for i = 0, 7 do
-  local innerSteps = {}
-  steps[i] = innerSteps
-  for j = 0, 15 do
-    innerSteps[j] = Step:new()
-  end
+  steps[i] = Pattern:new()
 end
 local patternInstruments = {}
 for i = 0, 7 do
@@ -56,7 +52,7 @@ function love.keypressed(key, scancode, isRepeat)
   keys[scancode] = 0
 
   if scancode == "z" then
-    steps[selectedPattern][selectedStep]:flip()
+    steps[selectedPattern]:getStep(selectedStep):flip()
   elseif scancode == "lshift" then
     local current = patternInstruments[selectedPattern]
     if current == nil then
@@ -81,7 +77,8 @@ function love.keypressed(key, scancode, isRepeat)
       patternInstruments[selectedPattern] = nil
     end
   elseif scancode == "escape" then
-    steps[selectedPattern][selectedStep].sustain = not steps[selectedPattern][selectedStep].sustain
+    local step = steps[selectedPattern]:getStep(selectedStep)
+    step.sustain = not step.sustain
   elseif scancode == "x" then
     local instrument = patternInstruments[selectedPattern]
     if instrument ~= nil then
@@ -100,12 +97,12 @@ function love.keypressed(key, scancode, isRepeat)
     end
 
   elseif scancode == "space" then
-    local step = steps[selectedPattern][selectedStep]
+    local step = steps[selectedPattern]:getStep(selectedStep)
     if step.note < 127 then
       step.note = step.note + 1
     end
   elseif scancode == "b" then
-    local step = steps[selectedPattern][selectedStep]
+    local step = steps[selectedPattern]:getStep(selectedStep)
     if step.note > 0 then
       step.note = step.note - 1
     end
@@ -129,7 +126,7 @@ local function playStep(step)
   for pattern = 0, 7 do
     local instrument = patternInstruments[pattern]
     if instrument ~= nil then
-      steps[pattern][step]:play(sfx[instrument])
+      steps[pattern]:getStep(step):play(sfx[instrument])
     end
   end
 end
@@ -224,7 +221,7 @@ local function drawPattern(patternIx, x, y)
 
   for i = 0, 15 do
     local mode = "line"
-    local cstep = steps[patternIx][i]
+    local cstep = steps[patternIx]:getStep(i)
     local highlight = (sequencerPlaying and i == step) or cstep.enabled
     if highlight then mode = "fill" end
     love.graphics.setColor(1, 1, 1)
@@ -250,7 +247,7 @@ local function drawPattern(patternIx, x, y)
   local instrument = patternInstruments[patternIx]
   local instrumentText = "(no instrument)"
   if instrument ~= nil then
-    instrumentText = instrument .. "(" .. hexstr2(steps[patternIx][selectedStep].note) .. ")"
+    instrumentText = instrument .. "(" .. hexstr2(steps[patternIx]:getStep(selectedStep).note) .. ")"
   end
   love.graphics.print(instrumentText, x + 28 * 16 + 28, y + 5)
 end
