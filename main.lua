@@ -83,14 +83,20 @@ function love.keypressed(key, scancode, isRepeat)
   elseif scancode == "escape" then
     steps[selectedPattern][selectedStep].sustain = not steps[selectedPattern][selectedStep].sustain
   elseif scancode == "x" then
-    local sample = sfx[patternInstruments[selectedPattern]]
-    if sample.envelope.attack > 0 then
-      sample.envelope.attack = sample.envelope.attack - 0.1
+    local instrument = patternInstruments[selectedPattern]
+    if instrument ~= nil then
+      local sample = sfx[instrument]
+      if sample.envelope.attack > 0 then
+        sample.envelope.attack = sample.envelope.attack - 0.1
+      end
     end
   elseif scancode == "y" then
-    local sample = sfx[patternInstruments[selectedPattern]]
-    if sample.envelope.attack < 10 then
-      sample.envelope.attack = sample.envelope.attack + 0.1
+    local instrument = patternInstruments[selectedPattern]
+    if instrument ~= nil then
+      local sample = sfx[instrument]
+      if sample.envelope.attack < 10 then
+        sample.envelope.attack = sample.envelope.attack + 0.1
+      end
     end
 
   elseif scancode == "space" then
@@ -218,12 +224,12 @@ local function drawPattern(patternIx, x, y)
 
   for i = 0, 15 do
     local mode = "line"
-    local step = steps[patternIx][i]
-    local highlight = (sequencerPlaying and i == step) or step.enabled
+    local cstep = steps[patternIx][i]
+    local highlight = (sequencerPlaying and i == step) or cstep.enabled
     if highlight then mode = "fill" end
     love.graphics.setColor(1, 1, 1)
     love.graphics.rectangle(mode, x + 28 + i * 28, y, 24, 24, 2, 2)
-    if step.sustain then
+    if cstep.sustain then
       love.graphics.rectangle("fill", x + 28 + i * 28 - 4, y + 11, 5, 5)
     end
     if highlight then
