@@ -1,7 +1,8 @@
 local Sample = require("Sample")
 local Pattern = require("Pattern")
+local Sequencer = require("Sequencer")
 
-local SAMPLES = {
+local SAMPLE_SOURCES = {
   kick = "kick.mp3",
   snare = "snare.mp3",
   hihat = "hihat.mp3",
@@ -15,118 +16,97 @@ local SAMPLES = {
 
 local prevkeys = {}
 local keys = {}
-local bpm = 120
-local sfx = {}
-local stepBuffer = 0
-local step = 0
-local selectedStep = 0
-local steps = {}
-for i = 0, 7 do
-  steps[i] = Pattern:new()
-end
-local patternInstruments = {}
-for i = 0, 7 do
-  patternInstruments[i] = nil
-end
-local sequencerJustStarted = false
-local sequencerPlaying = false
+local samples = {}
 local selectedPattern = 0
+local selectedStep = 0
+local patterns = {}
+for i = 0, 7 do
+  patterns[i] = Pattern:new()
+end
+local sequencer = Sequencer:new()
 
 function love.load()
   love.graphics.setNewFont("font.otf", 12)
 
-  for name, file in pairs(SAMPLES) do
-    sfx[name] = Sample:new({ url = "sfx/" .. file })
+  for name, file in pairs(SAMPLE_SOURCES) do
+    samples[name] = Sample:new(name, "sfx/" .. file)
     print("loaded sample " .. name .. " from " .. file)
   end
 
-  sfx.sine.rootNote = 69
-  sfx.sine:setNote(60)
-  sfx.casio.rootNote = 69
-  sfx.casio:setNote(60)
-  sfx.piano.rootNote = 45
-  sfx.piano:setNote(60)
+  samples.sine.rootNote = 69
+  samples.sine:setNote(60)
+  samples.casio.rootNote = 69
+  samples.casio:setNote(60)
+  samples.piano.rootNote = 45
+  samples.piano:setNote(60)
 end
 
 function love.keypressed(key, scancode, isRepeat)
   keys[scancode] = 0
 
   if scancode == "z" then
-    steps[selectedPattern]:getStep(selectedStep):flip()
+    patterns[selectedPattern]:getStep(selectedStep):flip()
   elseif scancode == "lshift" then
-    local current = patternInstruments[selectedPattern]
+    local pattern = patterns[selectedPattern]
+    local current = pattern.sample
     if current == nil then
-      patternInstruments[selectedPattern] = "kick"
-    elseif current == "kick" then
-      patternInstruments[selectedPattern] = "snare"
-    elseif current == "snare" then
-      patternInstruments[selectedPattern] = "hihat"
-    elseif current == "hihat" then
-      patternInstruments[selectedPattern] = "tom1"
-    elseif current == "tom1" then
-      patternInstruments[selectedPattern] = "tom2"
-    elseif current == "tom2" then
-      patternInstruments[selectedPattern] = "tom3"
-    elseif current == "tom3" then
-      patternInstruments[selectedPattern] = "sine"
-    elseif current == "sine" then
-      patternInstruments[selectedPattern] = "casio"
-    elseif current == "casio" then
-      patternInstruments[selectedPattern] = "piano"
-    elseif current == "piano" then
-      patternInstruments[selectedPattern] = nil
+      pattern.sample = samples.kick
+    elseif current.name == "kick" then
+      pattern.sample = samples.snare
+    elseif current.name == "snare" then
+      pattern.sample = samples.hihat
+    elseif current.name == "hihat" then
+      pattern.sample = samples.tom1
+    elseif current.name == "tom1" then
+      pattern.sample = samples.tom2
+    elseif current.name == "tom2" then
+      pattern.sample = samples.tom3
+    elseif current.name == "tom3" then
+      pattern.sample = samples.sine
+    elseif current.name == "sine" then
+      pattern.sample = samples.casio
+    elseif current.name == "casio" then
+      pattern.sample = samples.piano
+    elseif current.name == "piano" then
+      pattern.sample = nil
     end
   elseif scancode == "escape" then
-    local step = steps[selectedPattern]:getStep(selectedStep)
+    local step = patterns[selectedPattern]:getStep(selectedStep)
     step.sustain = not step.sustain
   elseif scancode == "x" then
-    local instrument = patternInstruments[selectedPattern]
-    if instrument ~= nil then
-      local sample = sfx[instrument]
+    local sample = patterns[selectedPattern].sample
+    if sample ~= nil then
       if sample.envelope.attack > 0 then
         sample.envelope.attack = sample.envelope.attack - 0.1
       end
     end
   elseif scancode == "y" then
-    local instrument = patternInstruments[selectedPattern]
-    if instrument ~= nil then
-      local sample = sfx[instrument]
+    local sample = patterns[selectedPattern].sample
+    if sample ~= nil then
       if sample.envelope.attack < 10 then
         sample.envelope.attack = sample.envelope.attack + 0.1
       end
     end
 
   elseif scancode == "space" then
-    local step = steps[selectedPattern]:getStep(selectedStep)
+    local step = patterns[selectedPattern]:getStep(selectedStep)
     if step.note < 127 then
       step.note = step.note + 1
     end
   elseif scancode == "b" then
-    local step = steps[selectedPattern]:getStep(selectedStep)
+    local step = patterns[selectedPattern]:getStep(selectedStep)
     if step.note > 0 then
       step.note = step.note - 1
     end
 
   elseif scancode == "return" then
-    if sequencerPlaying then
-      sequencerPlaying = false
-      step = 0
-      stepBuffer = 0
-      for _, sample in pairs(sfx) do
+    if sequencer.playing then
+      sequencer:stop()
+      for _, sample in pairs(samples) do
         sample:off()
       end
     else
-      sequencerJustStarted = true
-      sequencerPlaying = true
-    end
-  end
-end
-
-local function playStep(step)
-  for pattern = 0, 7 do
-    local instrument = patternInstruments[pattern]
-    if instrument ~= nil then
-      steps[pattern]:getStep(step):play(sfx[instrument])
+      sequencer:start()
     end
   end
 end
@@ -174,10 +154,10 @@ local function handleInput(dt)
     end
   end
 
-  if bpm > 1 and keyRepeat("l", 0.1) then
-    bpm = bpm - 1
-  elseif bpm < 999 and keyRepeat("r", 0.1) then
-    bpm = bpm + 1
+  if sequencer.bpm > 1 and keyRepeat("l", 0.1) then
+    sequencer.bpm = sequencer.bpm - 1
+  elseif sequencer.bpm < 999 and keyRepeat("r", 0.1) then
+    sequencer.bpm = sequencer.bpm + 1
   end
 
   prevkeys = lprevkeys
@@ -186,23 +166,14 @@ end
 function love.update(dt)
   handleInput(dt)
 
-  for name, sample in pairs(sfx) do
-    -- if name == "sine" then print("before", sample.envelope:show()) end
+  for name, sample in pairs(samples) do
     sample:update(dt)
-    -- if name == "sine" then print("after", sample.envelope:show()) end
   end
 
-  if sequencerPlaying then
-    if sequencerJustStarted then
-      playStep(step)
-    end
-    sequencerJustStarted = false
-    stepBuffer = stepBuffer + dt
-    local target = (60 / bpm) / 4
-    if stepBuffer >= target then
-      stepBuffer = stepBuffer - target
-      step = (step + 1) % 16
-      playStep(step)
+  sequencer:update(dt)
+  if sequencer.triggered then
+    for pattern = 0, 7 do
+      patterns[pattern]:play(sequencer.step)
     end
   end
 end
@@ -221,8 +192,8 @@ local function drawPattern(patternIx, x, y)
 
   for i = 0, 15 do
     local mode = "line"
-    local cstep = steps[patternIx]:getStep(i)
-    local highlight = (sequencerPlaying and i == step) or cstep.enabled
+    local cstep = patterns[patternIx]:getStep(i)
+    local highlight = (sequencer.playing and i == sequencer.step) or cstep.enabled
     if highlight then mode = "fill" end
     love.graphics.setColor(1, 1, 1)
     love.graphics.rectangle(mode, x + 28 + i * 28, y, 24, 24, 2, 2)
@@ -244,10 +215,10 @@ local function drawPattern(patternIx, x, y)
   end
 
   love.graphics.setColor(1, 1, 1)
-  local instrument = patternInstruments[patternIx]
+  local sample = patterns[patternIx].sample
   local instrumentText = "(no instrument)"
-  if instrument ~= nil then
-    instrumentText = instrument .. "(" .. hexstr2(steps[patternIx]:getStep(selectedStep).note) .. ")"
+  if sample ~= nil then
+    instrumentText = sample.name .. "(" .. hexstr2(patterns[patternIx]:getStep(selectedStep).note) .. ")"
   end
   love.graphics.print(instrumentText, x + 28 * 16 + 28, y + 5)
 end
@@ -255,8 +226,8 @@ end
 function love.draw()
   love.graphics.setColor(1, 1, 1)
   local seqText = "NOT PLAYING"
-  if sequencerPlaying then seqText = "PLAYING" end
-  love.graphics.print(seqText .. " (bpm " .. bpm .. ")", 10, 20)
+  if sequencer.playing then seqText = "PLAYING" end
+  love.graphics.print(seqText .. " (bpm " .. sequencer.bpm .. ")", 10, 20)
 
   for i = 0, 7 do
     drawPattern(i, 10, 50 + 30 * i)

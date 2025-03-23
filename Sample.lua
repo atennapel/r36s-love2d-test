@@ -1,6 +1,7 @@
 local ADSREnvelope = require("ADSREnvelope")
 
 local Sample = {
+  name = nil,
   url = nil,
   source = nil,
   envelope = nil,
@@ -10,16 +11,18 @@ local Sample = {
 }
 Sample.__index = Sample
 
-function Sample:new(options)
-  local object = setmetatable({}, Sample)
+function Sample:new(name, url, options)
+  local self = setmetatable({}, Sample)
   for k, v in pairs(options or {}) do
-    object[k] = v
+    self[k] = v
   end
-  local source = love.audio.newSource(object.url, "static")
-  source:setVolume(object.volume)
-  object.source = source
-  object.envelope = ADSREnvelope:new(source, object.volume)
-  return object
+  self.name = name
+  self.url = url
+  local source = love.audio.newSource(self.url, "static")
+  source:setVolume(self.volume)
+  self.source = source
+  self.envelope = ADSREnvelope:new(source, self.volume)
+  return self
 end
 
 function Sample:clone()
