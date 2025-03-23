@@ -1,4 +1,4 @@
-- setting steps while moving around
+X setting steps while moving around
 X sustain option per step
 X step class
 X pattern class

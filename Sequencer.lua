@@ -41,6 +41,7 @@ function Sequencer:stop()
   self.step = 0
   self.stepBuffer = 0
   self.playing = false
+  self.triggered = false
 end
 
 return Sequencer

@@ -14,6 +14,7 @@ local SAMPLE_SOURCES = {
   piano = "piano.ogg",
 }
 
+local keySpeed = 0.2
 local prevkeys = {}
 local keys = {}
 local samples = {}
@@ -45,7 +46,7 @@ function love.keypressed(key, scancode, isRepeat)
   keys[scancode] = 0
 
   if scancode == "z" then
-    patterns[selectedPattern]:getStep(selectedStep):flip()
+    -- patterns[selectedPattern]:getStep(selectedStep):flip()
   elseif scancode == "lshift" then
     local pattern = patterns[selectedPattern]
     local current = pattern.sample
@@ -111,6 +112,12 @@ function love.keypressed(key, scancode, isRepeat)
   end
 end
 
+function love.keyreleased(key, scancode)
+  if scancode == "z" then
+    patterns[selectedPattern]:getStep(selectedStep):flip()
+  end
+end
+
 local function keyRepeat(scancode, interval)
   local value = keys[scancode]
   if value ~= nil then
@@ -135,28 +142,40 @@ local function handleInput(dt)
     end
   end
 
-  if keyRepeat("a", 0.1) then
+  if keyRepeat("a", keySpeed) then
     if selectedStep > 0 then
+      if love.keyboard.isScancodeDown("z") then
+        patterns[selectedPattern]:getStep(selectedStep):flip()
+      end
       selectedStep = selectedStep - 1
     end
-  elseif keyRepeat("d", 0.1) then
+  elseif keyRepeat("d", keySpeed) then
     if selectedStep < 15 then
+      if love.keyboard.isScancodeDown("z") then
+        patterns[selectedPattern]:getStep(selectedStep):flip()
+      end
       selectedStep = selectedStep + 1
     end
   end
-  if keyRepeat("w", 0.1) then
+  if keyRepeat("w", keySpeed) then
     if selectedPattern > 0 then
+      if love.keyboard.isScancodeDown("z") then
+        patterns[selectedPattern]:getStep(selectedStep):flip()
+      end
       selectedPattern = selectedPattern - 1
     end
-  elseif keyRepeat("s", 0.1) then
+  elseif keyRepeat("s", keySpeed) then
     if selectedPattern < 7 then
+      if love.keyboard.isScancodeDown("z") then
+        patterns[selectedPattern]:getStep(selectedStep):flip()
+      end
       selectedPattern = selectedPattern + 1
     end
   end
 
-  if sequencer.bpm > 1 and keyRepeat("l", 0.1) then
+  if sequencer.bpm > 1 and keyRepeat("l", keySpeed) then
     sequencer.bpm = sequencer.bpm - 1
-  elseif sequencer.bpm < 999 and keyRepeat("r", 0.1) then
+  elseif sequencer.bpm < 999 and keyRepeat("r", keySpeed) then
     sequencer.bpm = sequencer.bpm + 1
   end
 
