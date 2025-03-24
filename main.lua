@@ -26,6 +26,11 @@ for i = 0, 7 do
 end
 local sequencer = Sequencer:new()
 
+local CONTROL_SEQUENCER = 0
+local CONTROL_SETTINGS = 1
+local selectedControl = CONTROL_SEQUENCER
+local selectedOption = 0
+
 function love.load()
   love.graphics.setNewFont("font.otf", 12)
 
@@ -45,11 +50,10 @@ end
 function love.keypressed(key, scancode, isRepeat)
   keys[scancode] = 0
 
-  if scancode == "z" then
-    -- patterns[selectedPattern]:getStep(selectedStep):flip()
-  elseif scancode == "lshift" then
+  if scancode == "lshift" then
     local pattern = patterns[selectedPattern]
     local current = pattern.sample
+    if current ~= nil then current:off() end
     if current == nil then
       pattern.sample = samples.kick
     elseif current.name == "kick" then
@@ -72,8 +76,7 @@ function love.keypressed(key, scancode, isRepeat)
       pattern.sample = nil
     end
   elseif scancode == "escape" then
-    local step = patterns[selectedPattern]:getStep(selectedStep)
-    step.sustain = not step.sustain
+    selectedControl = (selectedControl + 1) % 2
   elseif scancode == "x" then
     local sample = patterns[selectedPattern].sample
     if sample ~= nil then
@@ -87,17 +90,6 @@ function love.keypressed(key, scancode, isRepeat)
       if sample.envelope.attack < 10 then
         sample.envelope.attack = sample.envelope.attack + 0.1
       end
-    end
-
-  elseif scancode == "space" then
-    local step = patterns[selectedPattern]:getStep(selectedStep)
-    if step.note < 127 then
-      step.note = step.note + 1
-    end
-  elseif scancode == "b" then
-    local step = patterns[selectedPattern]:getStep(selectedStep)
-    if step.note > 0 then
-      step.note = step.note - 1
     end
 
   elseif scancode == "return" then
@@ -142,34 +134,78 @@ local function handleInput(dt)
     end
   end
 
-  if keyRepeat("a", keySpeed) then
-    if selectedStep > 0 then
-      if love.keyboard.isScancodeDown("z") then
-        patterns[selectedPattern]:getStep(selectedStep):flip()
+  if selectedControl == CONTROL_SEQUENCER then
+    if keyRepeat("a", keySpeed) then
+      if selectedStep > 0 then
+        if love.keyboard.isScancodeDown("z") then
+          patterns[selectedPattern]:getStep(selectedStep):flip()
+        end
+        selectedStep = selectedStep - 1
       end
-      selectedStep = selectedStep - 1
+    elseif keyRepeat("d", keySpeed) then
+      if selectedStep < 15 then
+        if love.keyboard.isScancodeDown("z") then
+          patterns[selectedPattern]:getStep(selectedStep):flip()
+        end
+        selectedStep = selectedStep + 1
+      end
     end
-  elseif keyRepeat("d", keySpeed) then
-    if selectedStep < 15 then
-      if love.keyboard.isScancodeDown("z") then
-        patterns[selectedPattern]:getStep(selectedStep):flip()
+    if keyRepeat("w", keySpeed) then
+      if selectedPattern > 0 then
+        if love.keyboard.isScancodeDown("z") then
+          patterns[selectedPattern]:getStep(selectedStep):flip()
+        end
+        selectedPattern = selectedPattern - 1
       end
-      selectedStep = selectedStep + 1
+    elseif keyRepeat("s", keySpeed) then
+      if selectedPattern < 7 then
+        if love.keyboard.isScancodeDown("z") then
+          patterns[selectedPattern]:getStep(selectedStep):flip()
+        end
+        selectedPattern = selectedPattern + 1
+      end
     end
-  end
-  if keyRepeat("w", keySpeed) then
-    if selectedPattern > 0 then
-      if love.keyboard.isScancodeDown("z") then
-        patterns[selectedPattern]:getStep(selectedStep):flip()
+  elseif selectedControl == CONTROL_SETTINGS then
+    if keyRepeat("w", keySpeed) then
+      if selectedOption > 0 then
+        selectedOption = selectedOption - 1
       end
-      selectedPattern = selectedPattern - 1
+    elseif keyRepeat("s", keySpeed) then
+      if selectedOption < 3 then
+        selectedOption = selectedOption + 1
+      end
     end
-  elseif keyRepeat("s", keySpeed) then
-    if selectedPattern < 7 then
-      if love.keyboard.isScancodeDown("z") then
-        patterns[selectedPattern]:getStep(selectedStep):flip()
+    local step = patterns[selectedPattern]:getStep(selectedStep)
+    if keyRepeat("a", keySpeed) then
+      if selectedOption == 0 then
+        step:flip()
+      elseif selectedOption == 1 then
+        if step.note > 0 then
+          step.note = step.note - 1
+        end
+      elseif selectedOption == 2 then
+        local up = math.floor(step.volume * 10)
+        if up > 0 then
+          step.volume = (up - 1) / 10
+        end
+      elseif selectedOption == 3 then
+        step.sustain = not step.sustain
       end
-      selectedPattern = selectedPattern + 1
+    elseif keyRepeat("d", keySpeed) then
+      if selectedOption == 0 then
+        step:flip()
+      elseif selectedOption == 1 then
+        if step.note < 127 then
+          step.note = step.note + 1
+        end
+      elseif selectedOption == 2 then
+        local up = math.floor(step.volume * 10)
+        if up < 10 then
+          step.volume = (up + 1) / 10
+        end
+      elseif selectedOption == 3 then
+        step.sustain = not step.sustain
+      end
     end
   end
 
@@ -197,6 +233,18 @@ function love.update(dt)
   end
 end
 
+local function boolstr(b)
+  if b then
+    return "1"
+  else
+    return "0"
+  end
+end
+
+local function hexstr(n)
+  return string.format("%X", n)
+end
+
 local function hexstr2(n)
   if n < 16 then
     return string.format("0%X", n)
@@ -207,7 +255,7 @@ end
 
 local function drawPattern(patternIx, x, y)
   love.graphics.setColor(1, 1, 1)
-  love.graphics.print(string.format("%X", patternIx), x + 8, y + 5)
+  love.graphics.print(hexstr(patternIx), x + 8, y + 5)
 
   for i = 0, 15 do
     local mode = "line"
@@ -226,9 +274,9 @@ local function drawPattern(patternIx, x, y)
     end
     local label
     if patternIx == selectedPattern and i == selectedStep then
-      label = string.format("[%X]", i)
+      label = "[" .. hexstr(i) .. "]"
     else
-      label = string.format(" %X ", i)
+      label = " " .. hexstr(i) ..  " "
     end
     love.graphics.print(label, x + 28 + i * 28 + 1, y + 5)
   end
@@ -237,9 +285,28 @@ local function drawPattern(patternIx, x, y)
   local sample = patterns[patternIx].sample
   local instrumentText = "(no instrument)"
   if sample ~= nil then
-    instrumentText = sample.name .. "(" .. hexstr2(patterns[patternIx]:getStep(selectedStep).note) .. ")"
+    instrumentText = sample.name .. " (" .. hexstr2(sample.note) .. ")"
   end
   love.graphics.print(instrumentText, x + 28 * 16 + 28, y + 5)
+end
+
+local function selection(show)
+  if show then
+    return "> "
+  else
+    return "  "
+  end
+end
+
+local function drawStepOptions(patternIx, stepIx)
+  local pattern = patterns[patternIx]
+  local step = pattern:getStep(stepIx)
+  love.graphics.setColor(1, 1, 1)
+  love.graphics.print("  step " .. hexstr(patternIx) .. "-" .. hexstr(stepIx), 10, 300)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 0) .. "enabled = " .. boolstr(step.enabled), 10, 312)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 1) .. "note    = " .. hexstr2(step.note), 10, 324)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 2) .. "volume  = " .. step.volume, 10, 336)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 3) .. "sustain = " .. boolstr(step.sustain), 10, 350)
 end
 
 function love.draw()
@@ -251,4 +318,6 @@ function love.draw()
   for i = 0, 7 do
     drawPattern(i, 10, 50 + 30 * i)
   end
+
+  drawStepOptions(selectedPattern, selectedStep)
 end

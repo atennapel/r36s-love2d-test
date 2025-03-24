@@ -3,6 +3,7 @@ X sustain option per step
 X step class
 X pattern class
 X sequencer class
-- song/pattern/step/instrument editing screens
+X step editing
+- song/pattern/instrument editing screens
 - script to create .love zip
 - investigate errors on R36s (can I get logs out of it?)
