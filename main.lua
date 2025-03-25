@@ -285,7 +285,8 @@ local function drawPattern(patternIx, x, y)
   local sample = patterns[patternIx].sample
   local instrumentText = "(no instrument)"
   if sample ~= nil then
-    instrumentText = sample.name .. " (" .. hexstr2(sample.note) .. ")"
+    local volume = string.format("%.2f", sample.source:getVolume())
+    instrumentText = sample.name .. " (" .. hexstr2(sample.note) .. ") (" .. volume .. ")"
   end
   love.graphics.print(instrumentText, x + 28 * 16 + 28, y + 5)
 end
@@ -305,7 +306,8 @@ local function drawStepOptions(patternIx, stepIx)
   love.graphics.print("  step " .. hexstr(patternIx) .. "-" .. hexstr(stepIx), 10, 300)
   love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 0) .. "enabled = " .. boolstr(step.enabled), 10, 312)
   love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 1) .. "note    = " .. hexstr2(step.note), 10, 324)
-  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 2) .. "volume  = " .. step.volume, 10, 336)
+  local volume = string.format("%.2f", step.volume)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 2) .. "volume  = " .. volume, 10, 336)
   love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 3) .. "sustain = " .. boolstr(step.sustain), 10, 350)
 end
 
