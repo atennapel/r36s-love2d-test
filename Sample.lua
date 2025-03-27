@@ -5,7 +5,8 @@ local Sample = {
   url = nil,
   source = nil,
   envelope = nil,
-  volume = 0.8,
+  gain = 0.8,
+  volume = 1,
   rootNote = 60,
   note = 60,
 }
@@ -19,9 +20,9 @@ function Sample:new(name, url, options)
   self.name = name
   self.url = url
   local source = love.audio.newSource(self.url, "static")
-  source:setVolume(self.volume)
+  source:setVolume(self.volume * self.gain)
   self.source = source
-  self.envelope = ADSREnvelope:new(source, self.volume)
+  self.envelope = ADSREnvelope:new(source, self.volume * self.gain)
   return self
 end
 
@@ -50,7 +51,12 @@ end
 
 function Sample:setVolume(v)
   self.volume = v
-  self.envelope.volumeScaling = v
+  self.envelope.volumeScaling = v * self.gain
+end
+
+function Sample:setGain(v)
+  self.gain = v
+  self.envelope.volumeScaling = self.volume * v
 end
 
 function Sample:on()

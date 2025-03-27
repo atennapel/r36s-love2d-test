@@ -18,18 +18,22 @@ local keySpeed = 0.2
 local prevkeys = {}
 local keys = {}
 local samples = {}
+local selectedPart = 0
 local selectedPattern = 0
 local selectedStep = 0
+local parts = {}
 local patterns = {}
 for i = 0, 7 do
   patterns[i] = Pattern:new()
 end
+parts[0] = patterns
 local sequencer = Sequencer:new()
 
 local CONTROL_SEQUENCER = 0
 local CONTROL_SETTINGS = 1
 local selectedControl = CONTROL_SEQUENCER
 local selectedOption = 0
+local selectedSample = nil
 
 function love.load()
   love.graphics.setNewFont("font.otf", 12)
@@ -38,6 +42,8 @@ function love.load()
     samples[name] = Sample:new(name, "sfx/" .. file)
     print("loaded sample " .. name .. " from " .. file)
   end
+
+  selectedSample = samples.kick
 
   samples.sine.rootNote = 69
   samples.sine:setNote(60)
@@ -50,46 +56,25 @@ end
 function love.keypressed(key, scancode, isRepeat)
   keys[scancode] = 0
 
-  if scancode == "lshift" then
-    local pattern = patterns[selectedPattern]
-    local current = pattern.sample
-    if current ~= nil then current:off() end
-    if current == nil then
-      pattern.sample = samples.kick
-    elseif current.name == "kick" then
-      pattern.sample = samples.snare
-    elseif current.name == "snare" then
-      pattern.sample = samples.hihat
-    elseif current.name == "hihat" then
-      pattern.sample = samples.tom1
-    elseif current.name == "tom1" then
-      pattern.sample = samples.tom2
-    elseif current.name == "tom2" then
-      pattern.sample = samples.tom3
-    elseif current.name == "tom3" then
-      pattern.sample = samples.sine
-    elseif current.name == "sine" then
-      pattern.sample = samples.casio
-    elseif current.name == "casio" then
-      pattern.sample = samples.piano
-    elseif current.name == "piano" then
-      pattern.sample = nil
-    end
-  elseif scancode == "escape" then
+  if scancode == "escape" or scancode == "lshift" then
     selectedControl = (selectedControl + 1) % 2
-  elseif scancode == "x" then
-    local sample = patterns[selectedPattern].sample
-    if sample ~= nil then
-      if sample.envelope.attack > 0 then
-        sample.envelope.attack = sample.envelope.attack - 0.1
-      end
+
+  elseif scancode == "l" then
+    if selectedPart > 0 then
+      selectedPart = selectedPart - 1
+      patterns = parts[selectedPart]
     end
-  elseif scancode == "y" then
-    local sample = patterns[selectedPattern].sample
-    if sample ~= nil then
-      if sample.envelope.attack < 10 then
-        sample.envelope.attack = sample.envelope.attack + 0.1
+  elseif scancode == "r" then
+    if selectedPart < 15 then
+      selectedPart = selectedPart + 1
+      if parts[selectedPart] == nil then
+        patterns = {}
+        for i = 0, 7 do
+          patterns[i] = Pattern:new()
+        end
+        parts[selectedPart] = patterns
       end
+      patterns = parts[selectedPart]
     end
 
   elseif scancode == "return" then
@@ -107,6 +92,55 @@ end
 function love.keyreleased(key, scancode)
   if scancode == "z" then
     patterns[selectedPattern]:getStep(selectedStep):flip()
+  end
+end
+
+
+local function nextSample(current)
+  if current == nil then
+    return samples.kick
+  elseif current.name == "kick" then
+    return samples.snare
+  elseif current.name == "snare" then
+    return samples.hihat
+  elseif current.name == "hihat" then
+    return samples.tom1
+  elseif current.name == "tom1" then
+    return samples.tom2
+  elseif current.name == "tom2" then
+    return samples.tom3
+  elseif current.name == "tom3" then
+    return samples.sine
+  elseif current.name == "sine" then
+    return samples.casio
+  elseif current.name == "casio" then
+    return samples.piano
+  elseif current.name == "piano" then
+    return nil
+  end
+end
+
+local function previousSample(current)
+  if current == nil then
+    return samples.piano
+  elseif current.name == "kick" then
+    return nil
+  elseif current.name == "snare" then
+    return samples.kick
+  elseif current.name == "hihat" then
+    return samples.snare
+  elseif current.name == "tom1" then
+    return samples.hihat
+  elseif current.name == "tom2" then
+    return samples.tom1
+  elseif current.name == "tom3" then
+    return samples.tom2
+  elseif current.name == "sine" then
+    return samples.tom3
+  elseif current.name == "casio" then
+    return samples.sine
+  elseif current.name == "piano" then
+    return samples.casio
   end
 end
 
@@ -171,47 +205,133 @@ local function handleInput(dt)
         selectedOption = selectedOption - 1
       end
     elseif keyRepeat("s", keySpeed) then
-      if selectedOption < 3 then
+      if selectedOption < 13 then
         selectedOption = selectedOption + 1
       end
     end
-    local step = patterns[selectedPattern]:getStep(selectedStep)
+    local pattern = patterns[selectedPattern]
+    local step = pattern:getStep(selectedStep)
+    local envelope = selectedSample.envelope
     if keyRepeat("a", keySpeed) then
       if selectedOption == 0 then
-        step:flip()
+        pattern.enabled = not pattern.enabled
       elseif selectedOption == 1 then
+        pattern.sample = previousSample(pattern.sample)
+
+      elseif selectedOption == 2 then
+        step:flip()
+      elseif selectedOption == 3 then
         if step.note > 0 then
           step.note = step.note - 1
         end
-      elseif selectedOption == 2 then
+      elseif selectedOption == 4 then
         local up = math.floor(step.volume * 10)
         if up > 0 then
           step.volume = (up - 1) / 10
         end
-      elseif selectedOption == 3 then
+      elseif selectedOption == 5 then
         step.sustain = not step.sustain
+
+      elseif selectedOption == 6 then
+        selectedSample = previousSample(selectedSample)
+        if selectedSample == nil then
+          selectedSample = previousSample(selectedSample)
+        end
+      elseif selectedOption == 7 then
+        local up = math.floor(selectedSample.gain * 10)
+        if up > 0 then
+          selectedSample:setGain((up - 1) / 10)
+        end
+      elseif selectedOption == 8 then
+        if selectedSample.rootNote > 0 then
+          selectedSample.rootNote = selectedSample.rootNote - 1
+        end
+      elseif selectedOption == 9 then
+        local up = math.floor(envelope.attack * 10)
+        if up > 0 then
+          envelope.attack = (up - 1) / 10
+        end
+      elseif selectedOption == 10 then
+        local up = math.floor(envelope.decay * 10)
+        if up > 0 then
+          envelope.decay = (up - 1) / 10
+        end
+      elseif selectedOption == 11 then
+        local up = math.floor(envelope.sustain * 10)
+        if up > 0 then
+          envelope.sustain = (up - 1) / 10
+        end
+      elseif selectedOption == 12 then
+        local up = math.floor(envelope.release * 10)
+        if up > 0 then
+          envelope.release = (up - 1) / 10
+        end
+      elseif selectedOption == 13 then
+        envelope.resetVolumeOnAttack = not envelope.resetVolumeOnAttack
       end
     elseif keyRepeat("d", keySpeed) then
       if selectedOption == 0 then
-        step:flip()
+        pattern.enabled = not pattern.enabled
       elseif selectedOption == 1 then
+        pattern.sample = nextSample(pattern.sample)
+
+      elseif selectedOption == 2 then
+        step:flip()
+      elseif selectedOption == 3 then
         if step.note < 127 then
           step.note = step.note + 1
         end
-      elseif selectedOption == 2 then
+      elseif selectedOption == 4 then
         local up = math.floor(step.volume * 10)
         if up < 10 then
           step.volume = (up + 1) / 10
         end
-      elseif selectedOption == 3 then
+      elseif selectedOption == 5 then
         step.sustain = not step.sustain
+
+      elseif selectedOption == 6 then
+        selectedSample = nextSample(selectedSample)
+        if selectedSample == nil then
+          selectedSample = nextSample(selectedSample)
+        end
+      elseif selectedOption == 7 then
+        local up = math.floor(selectedSample.gain * 10)
+        if up < 10 then
+          selectedSample:setGain((up + 1) / 10)
+        end
+      elseif selectedOption == 8 then
+        if selectedSample.rootNote < 127 then
+          selectedSample.rootNote = selectedSample.rootNote + 1
+        end
+      elseif selectedOption == 9 then
+        local up = math.floor(envelope.attack * 10)
+        if up < 600 then
+          envelope.attack = (up + 1) / 10
+        end
+      elseif selectedOption == 10 then
+        local up = math.floor(envelope.decay * 10)
+        if up < 600 then
+          envelope.decay = (up + 1) / 10
+        end
+      elseif selectedOption == 11 then
+        local up = math.floor(envelope.sustain * 10)
+        if up < 10 then
+          envelope.sustain = (up + 1) / 10
+        end
+      elseif selectedOption == 12 then
+        local up = math.floor(envelope.release * 10)
+        if up < 600 then
+          envelope.release = (up + 1) / 10
+        end
+      elseif selectedOption == 13 then
+        envelope.resetVolumeOnAttack = not envelope.resetVolumeOnAttack
       end
     end
   end
 
-  if sequencer.bpm > 1 and keyRepeat("l", keySpeed) then
+  if sequencer.bpm > 1 and keyRepeat("x", keySpeed) then
     sequencer.bpm = sequencer.bpm - 1
-  elseif sequencer.bpm < 999 and keyRepeat("r", keySpeed) then
+  elseif sequencer.bpm < 999 and keyRepeat("y", keySpeed) then
     sequencer.bpm = sequencer.bpm + 1
   end
 
@@ -283,12 +403,12 @@ local function drawPattern(patternIx, x, y)
 
   love.graphics.setColor(1, 1, 1)
   local sample = patterns[patternIx].sample
-  local instrumentText = "(no instrument)"
+  local sampleText = "(no sample)"
   if sample ~= nil then
     local volume = string.format("%.2f", sample.source:getVolume())
-    instrumentText = sample.name .. " (" .. hexstr2(sample.note) .. ") (" .. volume .. ")"
+    sampleText = sample.name .. " (" .. hexstr2(sample.note) .. ") (" .. volume .. ")"
   end
-  love.graphics.print(instrumentText, x + 28 * 16 + 28, y + 5)
+  love.graphics.print(sampleText, x + 28 * 16 + 28, y + 5)
 end
 
 local function selection(show)
@@ -300,22 +420,50 @@ local function selection(show)
 end
 
 local function drawStepOptions(patternIx, stepIx)
-  local pattern = patterns[patternIx]
-  local step = pattern:getStep(stepIx)
   love.graphics.setColor(1, 1, 1)
-  love.graphics.print("  step " .. hexstr(patternIx) .. "-" .. hexstr(stepIx), 10, 300)
-  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 0) .. "enabled = " .. boolstr(step.enabled), 10, 312)
-  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 1) .. "note    = " .. hexstr2(step.note), 10, 324)
+
+  -- pattern settings
+  local pattern = patterns[patternIx]
+  local sample = pattern.sample
+  love.graphics.print("  pattern " .. hexstr(patternIx), 10, 300)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 0) .. "enabled = " .. boolstr(pattern.enabled), 10, 312)
+  local sampleText = "(no sample)"
+  if sample ~= nil then
+    sampleText = pattern.sample.name
+  end
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 1) .. "sample  = " .. sampleText, 10, 324)
+
+  -- step settings
+  local step = pattern:getStep(stepIx)
+  love.graphics.print("  step " .. hexstr(stepIx), 10, 348)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 2) .. "enabled = " .. boolstr(step.enabled), 10, 360)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 3) .. "note    = " .. hexstr2(step.note), 10, 372)
   local volume = string.format("%.2f", step.volume)
-  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 2) .. "volume  = " .. volume, 10, 336)
-  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 3) .. "sustain = " .. boolstr(step.sustain), 10, 350)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 4) .. "volume  = " .. volume, 10, 384)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 5) .. "sustain = " .. boolstr(step.sustain), 10, 396)
+
+  -- sample settings
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 6) .. "sample " .. selectedSample.name, 200, 300)
+  local sampleVolume = string.format("%.2f", selectedSample.gain)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 7) .. "volume       = " .. sampleVolume, 200, 312)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 8) .. "root note    = " .. hexstr2(selectedSample.rootNote), 200, 324)
+  local attack = string.format("%.2f", selectedSample.envelope.attack)
+  local decay = string.format("%.2f", selectedSample.envelope.decay)
+  local sustain = string.format("%.2f", selectedSample.envelope.sustain)
+  local release = string.format("%.2f", selectedSample.envelope.release)
+  local resetVolumeOnAttack = boolstr(selectedSample.envelope.resetVolumeOnAttack)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 9) .. "attack       = " .. attack, 200, 336)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 10) .. "decay        = " .. decay, 200, 348)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 11) .. "sustain      = " .. sustain, 200, 360)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 12) .. "release      = " .. release, 200, 372)
+  love.graphics.print(selection(selectedControl == CONTROL_SETTINGS and selectedOption == 13) .. "reset volume = " .. resetVolumeOnAttack, 200, 384)
 end
 
 function love.draw()
   love.graphics.setColor(1, 1, 1)
-  local seqText = "NOT PLAYING"
-  if sequencer.playing then seqText = "PLAYING" end
-  love.graphics.print(seqText .. " (bpm " .. sequencer.bpm .. ")", 10, 20)
+  local seqText = "stopped"
+  if sequencer.playing then seqText = "playing" end
+  love.graphics.print("part " .. hexstr(selectedPart) .. ", " .. seqText .. " (bpm " .. sequencer.bpm .. ")", 10, 20)
 
   for i = 0, 7 do
     drawPattern(i, 10, 50 + 30 * i)

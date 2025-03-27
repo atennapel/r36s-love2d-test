@@ -1,6 +1,7 @@
 local Step = require("Step")
 
 local Pattern = {
+  enabled = true,
   steps = nil,
   length = 16,
   sample = nil,
@@ -24,7 +25,7 @@ function Pattern:getStep(ix)
 end
 
 function Pattern:play(ix)
-  if self.sample ~= nil then
+  if self.enabled and self.sample ~= nil then
     self:getStep(ix):play(self.sample)
   end
 end

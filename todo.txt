@@ -4,6 +4,8 @@ X step class
 X pattern class
 X sequencer class
 X step editing
-- song/pattern/instrument editing screens
+X pattern editing
+X sample editing
+- song editing
 - script to create .love zip
 - investigate errors on R36s (can I get logs out of it?)
