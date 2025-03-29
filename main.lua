@@ -34,6 +34,7 @@ local CONTROL_SETTINGS = 1
 local selectedControl = CONTROL_SEQUENCER
 local selectedOption = 0
 local selectedSample = nil
+local playingSample = nil
 
 function love.load()
   love.graphics.setNewFont("font.otf", 12)
@@ -86,12 +87,23 @@ function love.keypressed(key, scancode, isRepeat)
     else
       sequencer:start()
     end
+  elseif scancode == "b" then
+    local sample = parts[selectedPart][selectedPattern].sample
+    if sample ~= nil then
+      playingSample = sample
+      sample:on()
+    end
   end
 end
 
 function love.keyreleased(key, scancode)
   if scancode == "z" then
     patterns[selectedPattern]:getStep(selectedStep):flip()
+  elseif scancode == "b" then
+    if playingSample ~= nil then
+      playingSample:off()
+      playingSample = nil
+    end
   end
 end
 
