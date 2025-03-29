@@ -35,6 +35,7 @@ local selectedControl = CONTROL_SEQUENCER
 local selectedOption = 0
 local selectedSample = nil
 local playingSample = nil
+local recording = false
 
 function love.load()
   love.graphics.setNewFont("font.otf", 12)
@@ -57,8 +58,11 @@ end
 function love.keypressed(key, scancode, isRepeat)
   keys[scancode] = 0
 
-  if scancode == "escape" or scancode == "lshift" then
+  if scancode == "lshift" then
     selectedControl = (selectedControl + 1) % 2
+  
+  elseif scancode == "escape" then
+    recording = not recording
 
   elseif scancode == "l" then
     if selectedPart > 0 then
@@ -88,10 +92,15 @@ function love.keypressed(key, scancode, isRepeat)
       sequencer:start()
     end
   elseif scancode == "b" then
-    local sample = parts[selectedPart][selectedPattern].sample
+    local pattern = patterns[selectedPattern]
+    local sample = pattern.sample
     if sample ~= nil then
       playingSample = sample
       sample:on()
+      if sequencer.playing and recording then
+        local step = pattern:getStep(sequencer.step)
+        step.enabled = true
+      end
     end
   end
 end
@@ -475,7 +484,9 @@ function love.draw()
   love.graphics.setColor(1, 1, 1)
   local seqText = "stopped"
   if sequencer.playing then seqText = "playing" end
-  love.graphics.print("part " .. hexstr(selectedPart) .. ", " .. seqText .. " (bpm " .. sequencer.bpm .. ")", 10, 20)
+  local recText = ""
+  if recording then recText = " (rec)" end
+  love.graphics.print("part " .. hexstr(selectedPart) .. ", " .. seqText .. " (bpm " .. sequencer.bpm .. ")" .. recText, 10, 20)
 
   for i = 0, 7 do
     drawPattern(i, 10, 50 + 30 * i)
