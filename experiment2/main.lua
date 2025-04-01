@@ -51,25 +51,15 @@ end
 local curX = math.floor(WIDTH / 2)
 local curY = math.floor(HEIGHT / 2)
 
-
 local curWindow = W_MAIN
+
+local curTile = 33
 
 function love.load()
   love.graphics.setNewFont("font.otf", 16)
 end
 
-local function toggle(x, y)
-  local cur = mapGet(x, y)
-  if cur == 0 then
-    mapSet(x, y, 32)
-  elseif cur == 126 then
-    mapSet(x, y, 0)
-  else
-    mapSet(x, y, cur + 1)
-  end
-end
-
-local function handleKey(sc)
+local function handleKey(sc, firstPress)
   if curWindow == W_MAIN then
     if sc == K_UP then
       if curY > 0 then
@@ -91,27 +81,45 @@ local function handleKey(sc)
     end
 
     if sc == K_A then
-      toggle(curX, curY)
+      if firstPress then
+        mapSet(curX, curY, curTile)
+      else
+        curWindow = W_SELECTION
+      end
     end
+  elseif curWindow == W_SELECTION then
+    if sc == K_LEFT then
+      if curTile > 33 then
+        curTile = curTile - 1
+      end
+    elseif sc == K_RIGHT then
+      if curTile < 126 then
+        curTile = curTile + 1
+      end
+    end
+  end
+end
+
+function love.keyreleased(_, sc)
+  if sc == K_A and curWindow == W_SELECTION then
+    curWindow = W_MAIN
+    mapSet(curX, curY, curTile)
   end
 end
 
 function love.keypressed(_, sc, _)
   if keys[sc] ~= nil then
-    keys[sc] = 0
-  end
-
-  if sc == K_B then
-    curWindow = (curWindow + 1) % 2
+    keys[sc] = -1
   end
 end
+
 local function updateKeys(dt)
   for sc, cooldown in pairs(keys) do
     if love.keyboard.isScancodeDown(sc) then
       local newcooldown = cooldown - dt
       if newcooldown <= 0 then
         keys[sc] = KEY_COOLDOWN
-        handleKey(sc)
+        handleKey(sc, cooldown == -1)
       else
         keys[sc] = newcooldown
       end
@@ -149,5 +157,7 @@ function love.draw()
     love.graphics.rectangle("line", SELECTION_WINDOW_X * TILE_WIDTH, SELECTION_WINDOW_Y * TILE_HEIGHT, SELECTION_WINDOW_WIDTH * TILE_WIDTH, SELECTION_WINDOW_HEIGHT * TILE_HEIGHT)
     love.graphics.setColor(0, 0, 0)
     love.graphics.rectangle("fill", SELECTION_WINDOW_X * TILE_WIDTH, SELECTION_WINDOW_Y * TILE_HEIGHT, SELECTION_WINDOW_WIDTH * TILE_WIDTH, SELECTION_WINDOW_HEIGHT * TILE_HEIGHT)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print(string.char(curTile), SELECTION_WINDOW_X * TILE_WIDTH + TILE_WIDTH + X_FONT, SELECTION_WINDOW_Y * TILE_HEIGHT + TILE_HEIGHT + Y_FONT)
   end
 end
