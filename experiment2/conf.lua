@@ -1,6 +1,6 @@
 function love.conf(t)
   t.version = "11.5"
-  t.identity = "r36s-love2d-test"
+  t.identity = "r36s-love2d-test-experiment2"
 
   t.window.title = "R36s Love2D test"
   t.window.width = 640
