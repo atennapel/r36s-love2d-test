@@ -45,7 +45,7 @@ local function mapSet(x, y, v) map[x + 1][y + 1] = v end
 
 local keys = {}
 for i = 1, #KEYS do
-  keys[KEYS[i]] = 0
+  keys[KEYS[i]] = {cooldown = 0, count = 0}
 end
 
 local curX = math.floor(WIDTH / 2)
@@ -59,7 +59,7 @@ function love.load()
   love.graphics.setNewFont("font.otf", 16)
 end
 
-local function handleKey(sc, firstPress)
+local function handleKey(sc, count)
   if curWindow == W_MAIN then
     if sc == K_UP then
       if curY > 0 then
@@ -81,7 +81,7 @@ local function handleKey(sc, firstPress)
     end
 
     if sc == K_A then
-      if firstPress then
+      if count == 1 then
         mapSet(curX, curY, curTile)
       else
         curWindow = W_SELECTION
@@ -109,19 +109,21 @@ end
 
 function love.keypressed(_, sc, _)
   if keys[sc] ~= nil then
-    keys[sc] = -1
+    keys[sc] = {cooldown = -1, count = 0}
   end
 end
 
 local function updateKeys(dt)
-  for sc, cooldown in pairs(keys) do
+  for sc, state in pairs(keys) do
     if love.keyboard.isScancodeDown(sc) then
+      local cooldown = state.cooldown
       local newcooldown = cooldown - dt
       if newcooldown <= 0 then
-        keys[sc] = KEY_COOLDOWN
-        handleKey(sc, cooldown == -1)
+        state.cooldown = KEY_COOLDOWN
+        state.count = state.count + 1
+        handleKey(sc, state.count)
       else
-        keys[sc] = newcooldown
+        state.cooldown = newcooldown
       end
     end
   end
